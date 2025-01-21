@@ -1,10 +1,10 @@
 #coding: utf-8
 # +-------------------------------------------------------------------
-# | 宝塔Linux面板
+# | aaPanel
 # +-------------------------------------------------------------------
-# | Copyright (c) 2015-2099 宝塔软件(http://bt.cn) All rights reserved.
+# | Copyright (c) 2015-2099 aaPanel(www.aapanel.com) All rights reserved.
 # +-------------------------------------------------------------------
-# | Author: hwliang <hwl@bt.cn>
+# | Author: hwliang <hwl@aapanel.com>
 # +-------------------------------------------------------------------
 
 #------------------------------
@@ -72,7 +72,7 @@ def set_panel_pwd(password,ncli = False):
 
 #设置数据库目录
 def set_mysql_dir(path):
-    mysql_dir = '''#!/bin/bash
+    mysql_dir = r'''#!/bin/bash
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
 export PATH
 oldDir=`cat /etc/my.cnf |grep 'datadir'|awk '{print $3}'`
@@ -418,7 +418,7 @@ def bt_cli():
     nums = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
     if not u_input in nums:
         print(raw_tip)
-        print(public.get_msg_gettext('Cacelled!'))
+        print(public.get_msg_gettext('Cancelled!'))
         exit()
 
     print(raw_tip)
@@ -459,7 +459,7 @@ def bt_cli():
             return
 
         import re
-        rep = "^[\w@\._]+$"
+        rep = r"^[\w@\._]+$"
         if not re.match(rep, input_mysql):
             print(public.get_msg_gettext('|-ERROR, password cannot contain special characters'))
             return

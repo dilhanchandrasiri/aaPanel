@@ -1,10 +1,10 @@
 #coding: utf-8
 #-------------------------------------------------------------------
-# 宝塔Linux面板
+# aaPanel
 #-------------------------------------------------------------------
-# Copyright (c) 2015-2019 宝塔软件(http:#bt.cn) All rights reserved.
+# Copyright (c) 2015-2019 aaPanel(www.aapanel.com) All rights reserved.
 #-------------------------------------------------------------------
-# Author: hwliang <hwl@bt.cn>
+# Author: hwliang <hwl@aapanel.com>
 #-------------------------------------------------------------------
 
 #------------------------------
@@ -18,7 +18,8 @@ class panelAuth:
     __product_list_path = 'data/product_list.pl'
     __product_bay_path = 'data/product_bay.pl'
     __product_id = '100000011'
-    __official_url = 'https://brandnew.aapanel.com'
+    __official_url = 'https://www.aapanel.com'
+    # __official_url = 'http://dev.aapanel.com'
 
     def create_serverid(self,get):
         try:
@@ -36,7 +37,8 @@ class panelAuth:
                 data['server_id'] = serverid
                 public.writeFile(userPath,json.dumps(data))
             return data
-        except: return public.return_msg_gettext(False,'Please login with account first')
+        except:
+            return public.return_msg_gettext(False,'Please login with account first')
 
 
     def create_plugin_other_order(self,get):
@@ -70,7 +72,7 @@ class panelAuth:
                 params['product_id'] = self.get_plugin_info(get.pluginName)['id']
             else:
                 params['product_id'] = get.product_id
-            data = self.send_cloud('{}/api/product/prices'.format(self.__official_url), params)
+            data = self.send_cloud('{}/api/product/pricesV3'.format(self.__official_url), params)
             if not data:
                 return public.return_msg_gettext(False, 'Please log in to your aaPanel account on the panel first!')
             if not data['success']:
@@ -108,21 +110,84 @@ class panelAuth:
         params['src'] = 2
         params['trigger_entry'] = get.source
         params['pay_channel'] = 2
+        # 0.管理后台生成 1.Ping++ 2.Stripe 3.Paypal 10.抵扣券
+        if hasattr(get, 'pay_channel'):
+            params['pay_channel'] = get.pay_channel
         params['charge_type'] = get.charge_type
         env_info = public.fetch_env_info()
         params['environment_info'] = json.dumps(env_info)
         params['server_id'] = env_info['install_code']
+        # 多机购买 数量
+        if not hasattr(get, 'num'):
+            return public.return_msg_gettext(False, 'parameter error: num')
+        params['num'] = get.num
+
+        # 添加购买来源
+        # params['source'] = get.source
+
         data = self.send_cloud('{}/api/order/product/create'.format(self.__official_url), params)
         if not data['success']:
-            return public.return_msg_gettext(False,data['res'])
+            return public.return_msg_gettext(False, data['res'])
         return data['res']
 
     def get_stripe_session_id(self,get):
+
         params = {}
-        params['order_no'] = get.order_no
+        if hasattr(get, 'order_no'):
+            params['order_no'] = get.order_no
+        if hasattr(get, 'order_id'):
+            params['order_id'] = get.order_id
+
+        if hasattr(get, 'subscribe'):
+            params['subscribe'] = get.subscribe
+
+        if not params.get('order_no', None) and not params.get('order_id', None):
+            return public.return_msg_gettext(False,'parameter error')
+
         data = self.send_cloud('{}/api/order/product/pay'.format(self.__official_url), params)
         session['focre_cloud'] = True
         return data['res']
+    # paypal支付
+    def get_paypal_session_id(self,get):
+
+        params = {}
+        if hasattr(get, 'oid'):
+            params['oid'] = get.oid
+
+        if not params.get('oid', None):
+            return public.return_msg_gettext(False,'parameter error')
+
+        data = self.send_cloud('{}/api/paypal/create_order'.format(self.__official_url), params)
+        session['focre_cloud'] = True
+        data2 = {
+            "status": data.get("success", False),
+            "res": data.get("res", ""),
+            "nonce": data.get("nonce", 0),
+        }
+
+        return data2
+
+    # paypal 支付确认
+    def check_paypal_status(self,get):
+
+        params = {}
+        if hasattr(get, 'paypal_order_id'):
+            params['paypal_order_id'] = get.paypal_order_id
+
+        if not params.get('paypal_order_id', None):
+            return public.return_msg_gettext(False,'parameter error')
+
+
+        data = self.send_cloud('{}/api/paypal/capture_order'.format(self.__official_url), params)
+        # session['focre_cloud'] = True
+        data2 = {
+            "status": data.get("success", False),
+            "res": data.get("res", ""),
+            "nonce": data.get("nonce", 0),
+        }
+
+        return data2
+
 
     def check_pay_status(self,get):
         params = {}
@@ -206,7 +271,7 @@ class panelAuth:
             url_headers = {"Content-Type": "application/json",
                            "authorization": "bt {}".format(userInfo['token'])
                            }
-            resp = requests.post(cloudURL, params=params, headers=url_headers)
+            resp = requests.post(cloudURL, params =params, headers=url_headers)
             resp = resp.json()
             if not resp['res']: return None
             return resp
@@ -324,6 +389,10 @@ class panelAuth:
         if hasattr(get,'coupon_id') and get.pay_channel == '10':
             params['coupon_id'] = get.coupon_id
         data = self.send_cloud('{}/api/authorize/product/renew'.format(self.__official_url), params)
+
+        if not data['success']:
+            data['res'] = 'Invalid authorize OR authorize not found!'
+            return data
         session['focre_cloud'] = True
         # 使用抵扣券续费直接返回续费结果
         if get.pay_channel == '10':
@@ -346,3 +415,20 @@ class panelAuth:
         if not data['success']:
             return public.return_msg_gettext(False, 'Apply Failed')
         return public.return_msg_gettext(True,'Apply successfully')
+
+    # 获取专业版特权信息  或插件信息?
+    def get_plugin_remarks(self, get):
+
+        if not hasattr(get, 'product_id'):
+            return public.return_msg_gettext(False, 'product_id Parameter ERROR!')
+        product_id = get.product_id
+
+        ikey = 'plugin_remarks' + product_id
+        if ikey in session:
+            return session.get(ikey)
+        url = '{}/api/panel/get_advantages/{}'.format(self.__official_url, product_id)
+        data = requests.get(url).json()
+        # public.print_log(" ###############%%%%%%%%%%%%%%%%%%%% {}".format(data))
+        if not data: return public.returnMsg(False, 'Failed to connect to the server!')
+        session[ikey] = data
+        return data

@@ -1,10 +1,10 @@
 #coding: utf-8
 # +-------------------------------------------------------------------
-# | 宝塔Linux面板
+# | aaPanel
 # +-------------------------------------------------------------------
-# | Copyright (c) 2015-2017 宝塔软件(http://bt.cn) All rights reserved.
+# | Copyright (c) 2015-2017 aaPanel(www.aapanel.com) All rights reserved.
 # +-------------------------------------------------------------------
-# | Author: hwliang <hwl@bt.cn>
+# | Author: hwliang <hwl@aapanel.com>
 # +-------------------------------------------------------------------
 import public,os,json,time
 class panelApi:
@@ -224,6 +224,7 @@ class panelApi:
             data['token'] = public.md5(token)
             data['token_crypt'] = public.en_crypt(data['token'],token).decode('utf-8')
             public.write_log_gettext('API configuration','Regenerate API-Token')
+            public.add_security_logs('API configuration','Regenerate API-Token')
         elif get.t_type == '2':
             data['open'] = not data['open']
             stats = {True:'Open',False:'Close'}
@@ -232,10 +233,12 @@ class panelApi:
                 data['token'] = public.md5(token)
                 data['token_crypt'] = public.en_crypt(data['token'],token).decode('utf-8')
             public.write_log_gettext('API configuration','{} API interface',(stats[data['open']],))
+            public.add_security_logs('API configuration', '{} API interface', (stats[data['open']],))
             token = stats[data['open']] + ' success!'
         elif get.t_type == '3':
             data['limit_addr'] = get.limit_addr.split('\n')
             public.write_log_gettext('API configuration','Change IP limit to [{}]',(get.limit_addr,))
+            public.add_security_logs('API configuration', 'Change IP limit to [{}]', (get.limit_addr,))
             token ='Saved successfully!'
         self.save_api_config(data)
         return public.return_msg_gettext(True,token)

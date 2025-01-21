@@ -2,7 +2,7 @@
 # +-------------------------------------------------------------------
 # | version :1.0
 # +-------------------------------------------------------------------
-# | Author: 梁凯强 <1249648969@qq.com>
+# | Author: 梁凯强 <1249648969@aapanel.com>
 # +-------------------------------------------------------------------
 # | SSH 双因子认证
 # +--------------------------------------------------------------------
@@ -100,7 +100,7 @@ class ssh_authentication:
     def install_pam_python(self,check):
         so_path=check[2]
         so_name=check[2].split('/')[-1]
-        public.ExecShell('/usr/local/curl/bin/curl -o %s https://download.bt.cn/btwaf_rule/pam_python_so/%s'%(so_path,so_name))
+        public.ExecShell('/usr/local/curl/bin/curl -k -o %s https://download.bt.cn/btwaf_rule/pam_python_so/%s'%(so_path,so_name))
         public.ExecShell("chmod 600 " + so_path)
         return True
     
@@ -150,7 +150,7 @@ class ssh_authentication:
 
     #设置SSH应答模式
     def set_ssh_login_user(self):
-        ssh_password = '\nChallengeResponseAuthentication\s\w+'
+        ssh_password = '\nChallengeResponseAuthentication\\s\\w+'
         file = public.readFile(self.__SSH_CONFIG)
         if isinstance(file, str):
             if len(re.findall(ssh_password, file)) == 0:
@@ -164,7 +164,7 @@ class ssh_authentication:
     #关闭SSH应答模式
     def close_ssh_login_user(self):
         file = public.readFile(self.__SSH_CONFIG)
-        ssh_password = '\nChallengeResponseAuthentication\s\w+'
+        ssh_password = '\nChallengeResponseAuthentication\\s\\w+'
         if isinstance(file, str):
             file_result = re.sub(ssh_password, '\nChallengeResponseAuthentication no', file)
             self.wirte(self.__SSH_CONFIG, file_result)
@@ -174,7 +174,7 @@ class ssh_authentication:
     #查看SSH应答模式
     def check_ssh_login_user(self):
         file = public.readFile(self.__SSH_CONFIG)
-        ssh_password = '\nChallengeResponseAuthentication\s\w+'
+        ssh_password = '\nChallengeResponseAuthentication\\s\\w+'
         if isinstance(file, str):
             ret = re.findall(ssh_password, file)
             if not ret:
@@ -230,7 +230,7 @@ class ssh_authentication:
         无参数传递
         '''
         file = public.readFile(self.__SSH_CONFIG)
-        ssh_password = '\nPasswordAuthentication\s\w+'
+        ssh_password = '\nPasswordAuthentication\\s\\w+'
         if isinstance(file, str):
             ret = re.findall(ssh_password, file)
             if not ret:

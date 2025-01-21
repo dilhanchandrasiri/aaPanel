@@ -1,0 +1,1 @@
+import{_ as s}from"./index61.js?v=1723125373998";import{b8 as a}from"./index.js?v=1723125373998";import{l as t,S as e,U as i}from"./vue.js?v=1723125373998";import"./pinia.js?v=1723125373998";const o=t({__name:"index",setup:t=>(window.usePay=a,(a,t)=>{const o=s;return e(),i(o,{path:"btwaf/index"})})});export{o as default};

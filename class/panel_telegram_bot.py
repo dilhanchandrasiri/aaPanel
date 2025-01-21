@@ -1,10 +1,10 @@
 # coding: utf-8
 # +-------------------------------------------------------------------
-# | 宝塔Linux面板 x3
+# | aaPanel x3
 # +-------------------------------------------------------------------
-# | Copyright (c) 2015-2017 宝塔软件(http://bt.cn) All rights reserved.
+# | Copyright (c) 2015-2017 aaPanel(www.aapanel.com) All rights reserved.
 # +-------------------------------------------------------------------
-# | Author: zhw <zhw@bt.cn>
+# | Author: zhw <zhw@aapanel.com>
 # +-------------------------------------------------------------------
 
 import public
@@ -51,18 +51,50 @@ class panel_telegram_bot:
             return {"setup":False,"bot_token":"","my_id":""}
 
     def process_character(self,content):
-        character = ['.',',','!',':','%','[',']','\/','_','-','>']
+        character = ['\\', '_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
         for c in character:
-            if c in content and '\\{}'.format(c) not in content:
-                content = content.replace(c,'\\'+c)
+            content = content.replace(c, '\\' + c)
         return content
 
 
     # 使用tg机器人发送消息
     def send_by_tg_bot(self,content,parse_mode=None):
+        """
+        @author hezhihong
+        """
+        
         "parse_mode 消息格式  html/markdown/markdownv2"
-        content = self.process_character(content)
+        
+        # content = self.process_character(content)
         conf = self.get_tg_conf()
-        bot = telegram.Bot(conf['bot_token'])
-        result = bot.send_message(text=content, chat_id=int(conf['my_id']), parse_mode="MarkdownV2")
-        return result
+        try:
+            result= self.send_message(conf['bot_token'],conf['my_id'],content)
+            if not result['status']:
+                return False
+            return True
+        except:
+            return False
+            
+            
+    def send_message(self, bot_token, chat_id, msg):
+        """
+        tg发送信息
+        @msg 消息正文
+        @author hezhihong
+        """
+        msg = self.process_character(msg)
+        url = 'https://api.telegram.org/bot{}/sendMessage'.format(bot_token)
+        data = {
+            'chat_id': chat_id,
+            'text': msg,
+            'parse_mode':'MarkdownV2',
+        }
+        try:
+            import requests
+            response = requests.post(url, json=data)
+            if response.status_code == 200:
+                return public.returnMsg(True,0,response.json())
+            else:
+                return public.returnMsg(False,json.loads(response.text))
+        except Exception as e:
+            return public.returnMsg(False,str(e))

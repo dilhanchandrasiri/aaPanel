@@ -1,12 +1,13 @@
  #coding: utf-8
 # +-------------------------------------------------------------------
-# | 宝塔Linux面板
+# | aaPanel
 # +-------------------------------------------------------------------
-# | Copyright (c) 2015-2016 宝塔软件(http://bt.cn) All rights reserved.
+# | Copyright (c) 2015-2016 aaPanel(www.aapanel.com) All rights reserved.
 # +-------------------------------------------------------------------
-# | Author: hwliang <hwl@bt.cn>
+# | Author: hwliang <hwl@aapanel.com>
 # +-------------------------------------------------------------------
-from BTPanel import session,request,cache
+from flask import session,request
+
 import public,os,json,time,apache,psutil
 class ajax:
     __official_url = 'https://brandnew.aapanel.com'
@@ -43,16 +44,17 @@ class ajax:
             if len(tmp) < 15: is_curl = True
 
             if is_curl:
-                result = public.ExecShell('curl http://127.0.0.1/nginx_status')[0]
+                result = public.ExecShell(
+                    'curl http://127.0.0.1/nginx_status')[0]
                 tmp = result.split()
             data = {}
             if "request_time" in tmp:
-                data['accepts']  = tmp[8]
-                data['handled']  = tmp[9]
+                data['accepts'] = tmp[8]
+                data['handled'] = tmp[9]
                 data['requests'] = tmp[10]
-                data['Reading']  = tmp[13]
-                data['Writing']  = tmp[15]
-                data['Waiting']  = tmp[17]
+                data['Reading'] = tmp[13]
+                data['Writing'] = tmp[15]
+                data['Waiting'] = tmp[17]
             else:
                 data['accepts'] = tmp[9]
                 data['handled'] = tmp[7]
@@ -62,7 +64,7 @@ class ajax:
                 data['Waiting'] = tmp[15]
             data['active'] = tmp[2]
             data['worker'] = worker
-            data['workercpu'] = round(float(process_cpu["nginx"]),2)
+            data['workercpu'] = round(float(process_cpu["nginx"]), 2)
             data['workermen'] = "%s%s" % (int(workermen), "MB")
             return data
         except Exception as ex:
@@ -185,6 +187,8 @@ class ajax:
         filename = public.GetConfigValue('setup_path') + '/panel/data/'+get.name+'As.conf'
         conf = get.access_key.strip() + '|' + get.secret_key.strip() + '|' + get.bucket_name.strip() + '|' + get.bucket_domain.strip()
         public.writeFile(filename,conf)
+        if not os.path.exists(filename):
+            return public.return_msg_gettext(False, 'write file failed!')
         public.ExecShell("chmod 600 " + filename)
         result = public.ExecShell(public.get_python_bin() + " " + public.GetConfigValue('setup_path') + "/panel/script/backup_"+get.name+".py list")
         
@@ -244,59 +248,69 @@ class ajax:
                 tmp['type'] = 'tcp'
             else:
                 tmp['type'] = 'udp'
-            tmp['family']   = netstat.family
-            tmp['laddr']    = netstat.laddr
-            tmp['raddr']    = netstat.raddr
-            tmp['status']   = netstat.status
+            tmp['family'] = netstat.family
+            tmp['laddr'] = netstat.laddr
+            tmp['raddr'] = netstat.raddr
+            tmp['status'] = netstat.status
             p = psutil.Process(netstat.pid)
-            tmp['process']  = p.name()
-            tmp['pid']      = netstat.pid
+            tmp['process'] = p.name()
+            tmp['pid'] = netstat.pid
             networkList.append(tmp)
-            del(p)
-            del(tmp)
-        networkList = sorted(networkList, key=lambda x : x['status'], reverse=True)
+            del (p)
+            del (tmp)
+        networkList = sorted(networkList,
+                             key=lambda x: x['status'],
+                             reverse=True)
         return networkList
-    
+
     #取进程列表
-    def GetProcessList(self,get):
-        import psutil,pwd
+    def GetProcessList(self, get):
+        import psutil, pwd
         Pids = psutil.pids()
-        
+
         processList = []
         for pid in Pids:
             try:
                 tmp = {}
                 p = psutil.Process(pid)
                 if p.exe() == "": continue
-                
-                tmp['name'] = p.name();                             #进程名称
+
+                tmp['name'] = p.name()
+                #进程名称
                 if self.GoToProcess(tmp['name']): continue
-                
-                
-                tmp['pid'] = pid                                   #进程标识
-                tmp['status'] = p.status()                         #进程状态
-                tmp['user'] = p.username()                         #执行用户
+
+                tmp['pid'] = pid
+                #进程标识
+                tmp['status'] = p.status()
+                #进程状态
+                tmp['user'] = p.username()
+                #执行用户
                 cputimes = p.cpu_times()
                 tmp['cpu_percent'] = p.cpu_percent(0.1)
-                tmp['cpu_times'] = cputimes.user                             #进程占用的CPU时间
-                tmp['memory_percent'] = round(p.memory_percent(),3)          #进程占用的内存比例
+                tmp['cpu_times'] = cputimes.user  #进程占用的CPU时间
+                tmp['memory_percent'] = round(p.memory_percent(),
+                                              3)  #进程占用的内存比例
                 pio = p.io_counters()
-                tmp['io_write_bytes'] = pio.write_bytes             #进程总共写入字节数
-                tmp['io_read_bytes'] = pio.read_bytes               #进程总共读取字节数
-                tmp['threads'] = p.num_threads()                    #进程总线程数
-                
+                tmp['io_write_bytes'] = pio.write_bytes  #进程总共写入字节数
+                tmp['io_read_bytes'] = pio.read_bytes  #进程总共读取字节数
+                tmp['threads'] = p.num_threads()  #进程总线程数
+
                 processList.append(tmp)
-                del(p)
-                del(tmp)
+                del (p)
+                del (tmp)
             except:
                 continue
         import operator
-        processList = sorted(processList, key=lambda x : x['memory_percent'], reverse=True)
-        processList = sorted(processList, key=lambda x : x['cpu_times'], reverse=True)
+        processList = sorted(processList,
+                             key=lambda x: x['memory_percent'],
+                             reverse=True)
+        processList = sorted(processList,
+                             key=lambda x: x['cpu_times'],
+                             reverse=True)
         return processList
-    
+
     #结束指定进程
-    def KillProcess(self,get):
+    def KillProcess(self, get):
         #return public.returnMsg(False,'演示服务器，禁止此操作!');
         import psutil
         p = psutil.Process(int(get.pid))
@@ -318,24 +332,138 @@ class ajax:
     
     def GetNetWorkIo(self,get):
         #取指定时间段的网络Io
-        data =  public.M('network').dbfile('system').where("addtime>=? AND addtime<=?",(get.start,get.end)).field('id,up,down,total_up,total_down,down_packets,up_packets,addtime').order('id asc').select()
-        return self.ToAddtime(data,None)
-    
-    def GetDiskIo(self,get):
+        data = public.M('network').dbfile('system').where(
+            "addtime>=? AND addtime<=?", (get.start, get.end)
+        ).field(
+            'id,up,down,total_up,total_down,down_packets,up_packets,addtime'
+        ).order('id desc').select()
+        return self.ToAddtime(data, None)
+
+    def GetDiskIo(self, get):
         #取指定时间段的磁盘Io
-        data = public.M('diskio').dbfile('system').where("addtime>=? AND addtime<=?",(get.start,get.end)).field('id,read_count,write_count,read_bytes,write_bytes,read_time,write_time,addtime').order('id asc').select()
-        return self.ToAddtime(data)
-    def GetCpuIo(self,get):
+        __OPT_FIELD = "*"
+        tmp_cols = public.M('diskio').dbfile('system').query(
+            'PRAGMA table_info(diskio)', ())
+        cols = []
+        for col in tmp_cols:
+            if len(col) > 2: cols.append('`' + col[1] + '`')
+        if len(cols) > 0:
+            cols.append("disk_top")
+            __OPT_FIELD = ','.join(cols)
+        data = public.M('diskio').dbfile('system').query(
+            "SELECT diskio.*,process_top_list.disk_top from diskio inner join process_top_list on diskio.addtime=process_top_list.addtime where diskio.addtime>={} AND diskio.addtime<={} ORDER BY diskio.addtime desc;"
+            .format(get.start, get.end), ())
+        if isinstance(data, str) and data.find(
+                'error: no such table: process_top_list') != -1:
+            return public.M('diskio').dbfile('system').where(
+                "addtime>=? AND addtime<=?", (get.start, get.end)
+            ).field(
+                'id,read_count,write_count,read_bytes,write_bytes,read_time,write_time,addtime'
+            ).order('id asc').select()
+        try:
+            if __OPT_FIELD != "*":
+                fields = self.__format_field(__OPT_FIELD.split(','))
+                tmp = []
+                for row in data:
+                    i = 0
+                    tmp1 = {}
+                    for key in fields:
+                        tmp1[key.strip('`')] = row[i]
+                        i += 1
+                    tmp.append(tmp1)
+                    del (tmp1)
+                data = tmp
+        except:
+            return []
+        return self.ToAddtime(data, True, 'disk')
+
+
+    def __format_field(self,field):
+        import re
+        fields = []
+        for key in field:
+            s_as = re.search(r'\s+as\s+',key,flags=re.IGNORECASE)
+            if s_as:
+                as_tip = s_as.group()
+                key = key.split(as_tip)[1]
+            fields.append(key)
+        return fields
+
+    def GetCpuIo(self, get):
         #取指定时间段的CpuIo
-        data = public.M('cpuio').dbfile('system').where("addtime>=? AND addtime<=?",(get.start,get.end)).field('id,pro,mem,addtime').order('id asc').select()
-        return self.ToAddtime(data,True)
-    
-    def get_load_average(self,get):
-        data = public.M('load_average').dbfile('system').where("addtime>=? AND addtime<=?",(get.start,get.end)).field('id,pro,one,five,fifteen,addtime').order('id asc').select()
-        return self.ToAddtime(data)
+        __OPT_FIELD = "*"
+        tmp_cols = public.M('cpuio').dbfile('system').query(
+            'PRAGMA table_info(cpuio)', ())
+        cols = []
+        for col in tmp_cols:
+            if len(col) > 2: cols.append('`' + col[1] + '`')
+        if len(cols) > 0:
+            cols.append("cpu_top")
+            cols.append("memory_top")
+            __OPT_FIELD = ','.join(cols)
+        data = public.M('cpuio').dbfile('system').query(
+            "SELECT cpuio.*,process_top_list.cpu_top,process_top_list.memory_top from cpuio inner join process_top_list on cpuio.addtime=process_top_list.addtime where cpuio.addtime>={} AND cpuio.addtime<={} ORDER BY cpuio.addtime desc;"
+            .format(get.start, get.end), ())
+        if isinstance(data, str) and data.find(
+                'error: no such table: process_top_list') != -1:
+            return public.M('cpuio').dbfile('system').where(
+                "addtime>=? AND addtime<=?",
+                (get.start, get.end
+                 )).field('id,pro,mem,addtime').order('id asc').select()
+        try:
+            if __OPT_FIELD != "*":
+                fields = self.__format_field(__OPT_FIELD.split(','))
+                tmp = []
+                for row in data:
+                    i = 0
+                    tmp1 = {}
+                    for key in fields:
+                        tmp1[key.strip('`')] = row[i]
+                        i += 1
+                    tmp.append(tmp1)
+                    del (tmp1)
+                data = tmp
+        except:
+            return []
+        return self.ToAddtime(data, True, 'cpu')
 
+    def get_load_average(self, get):
+        __OPT_FIELD = "*"
+        tmp_cols = public.M('load_average').dbfile('system').query(
+            'PRAGMA table_info(load_average)', ())
+        cols = []
+        for col in tmp_cols:
+            if len(col) > 2: cols.append('`' + col[1] + '`')
+        if len(cols) > 0:
+            cols.append("cpu_top")
+            __OPT_FIELD = ','.join(cols)
+        data = public.M('load_average').dbfile('system').query(
+            "SELECT load_average.*,process_top_list.cpu_top from load_average inner join process_top_list on load_average.addtime=process_top_list.addtime where load_average.addtime>={} AND load_average.addtime<={} ORDER BY load_average.addtime desc;"
+            .format(get.start, get.end), ())
+        if isinstance(data, str) and data.find(
+                'error: no such table: process_top_list') != -1:
+            return public.M('load_average').dbfile('system').where(
+                "addtime>=? AND addtime<=?",
+                (get.start, get.end)).field('id,pro,one,five,fifteen,addtime'
+                                            ).order('id asc').select()
+        try:
+            if __OPT_FIELD != "*":
+                fields = self.__format_field(__OPT_FIELD.split(','))
+                tmp = []
+                for row in data:
+                    i = 0
+                    tmp1 = {}
+                    for key in fields:
+                        tmp1[key.strip('`')] = row[i]
+                        i += 1
+                    tmp.append(tmp1)
+                    del (tmp1)
+                data = tmp
+        except:
+            return []
+        return self.ToAddtime(data, True, 'cpu')
 
-    def get_process_tops(self,get):
+    def get_process_tops(self, get):
         '''
             @name 获取进程开销排行
             @author hwliang<2021-09-07>
@@ -345,11 +473,13 @@ class ajax:
             }
             @return list
         '''
-        data = public.M('process_tops').dbfile('system').where("addtime>=? AND addtime<=?",(get.start,get.end)).field('id,process_list,addtime').order('id asc').select()
+        data = public.M('process_tops').dbfile('system').where(
+            "addtime>=? AND addtime<=?",
+            (get.start, get.end
+             )).field('id,process_list,addtime').order('id asc').select()
         return self.ToAddtime(data)
 
-
-    def get_process_cpu_high(self,get):
+    def get_process_cpu_high(self, get):
         '''
             @name 获取CPU占用高的进程列表
             @author hwliang<2021-09-07>
@@ -359,17 +489,16 @@ class ajax:
             }
             @return list
         '''
-        data = public.M('process_high_percent').dbfile('system').where("addtime>=? AND addtime<=?",(get.start,get.end)).field('id,name,pid,cmdline,cpu_percent,memory,cpu_time_total,addtime').order('id asc').select()
+        data = public.M('process_high_percent').dbfile('system').where(
+            "addtime>=? AND addtime<=?", (get.start, get.end)).field(
+                'id,name,pid,cmdline,cpu_percent,memory,cpu_time_total,addtime'
+            ).order('id asc').select()
         return self.ToAddtime(data)
 
-
-
-
-    
-    def ToAddtime(self,data,tomem = False):
+    def ToAddtime(self, data, tomem=False, types=None):
         import time
         #格式化addtime列
-        
+
         if tomem:
             import psutil
             mPre = (psutil.virtual_memory().total / 1024 / 1024) / 100
@@ -381,26 +510,71 @@ class ajax:
         if he == 1:
             for i in range(length):
                 try:
-                    data[i]['addtime'] = time.strftime('%m/%d %H:%M',time.localtime(float(data[i]['addtime'])))
+                    if types:
+                        key = '{}_top'.format(types)
+                        if key in data[i]:
+                            data[i][key] = json.loads(data[i][key])
+                        if 'memory_top' in data[i]:
+                            data[i]['memory_top'] = json.loads(
+                                data[i]['memory_top'])
+                    data[i]['addtime'] = time.strftime(
+                        '%m/%d %H:%M',
+                        time.localtime(float(data[i]['addtime'])))
                     if 'process_list' in data[i]:
-                        data[i]['process_list'] = json.loads(data[i]['process_list'])
-                    if tomem and data[i]['mem'] > 100: data[i]['mem'] = data[i]['mem'] / mPre
+                        data[i]['process_list'] = json.loads(
+                            data[i]['process_list'])
+                    if tomem and data[i]['mem'] > 100:
+                        data[i]['mem'] = data[i]['mem'] / mPre
                     if tomem in [None]:
                         if type(data[i]['down_packets']) == str:
-                            data[i]['down_packets'] = json.loads(data[i]['down_packets'])
-                            data[i]['up_packets'] = json.loads(data[i]['up_packets'])
-                except: continue
+                            data[i]['down_packets'] = json.loads(
+                                data[i]['down_packets'])
+                            data[i]['up_packets'] = json.loads(
+                                data[i]['up_packets'])
+                except:
+                    continue
             return data
         else:
             count = 0
             tmp = []
+            couns = 0
             for value in data:
-                if count < he: 
+                if count < he:  # 0 1 2
                     count += 1
+                    #cpu大于60的时候，随机取
+                    if types == "cpu" and 'pro' in value and value['pro'] > 60:
+                        couns += 1
+                        #he等于3 的时候 百分之50的概率取  当he等于15的时候 百分之33的概率取
+                        if (he == 3
+                                and couns % 2 == 0) or (he == 15
+                                                        and couns % 3 == 0):
+                            if types:
+                                key = '{}_top'.format(types)
+                                if key in value:
+                                    value[key] = json.loads(value[key])
+                                if 'memory_top' in value:
+                                    value['memory_top'] = json.loads(
+                                        value['memory_top'])
+                            value['addtime'] = time.strftime(
+                                '%m/%d %H:%M',
+                                time.localtime(float(value['addtime'])))
+                            if tomem and 'mem' in value and value['mem'] > 100:
+                                value['mem'] = value['mem'] / mPre
+                            if tomem in [None]:
+                                if type(value['down_packets']) == str:
+                                    value['down_packets'] = json.loads(value['down_packets'])
+                                    value['up_packets'] = json.loads(value['up_packets'])
+                            tmp.append(value)
                     continue
                 try:
+                    if types:
+                        key='{}_top'.format(types)
+                        if key in value:
+                            value[key] = json.loads(value[key])
+                        if 'memory_top' in value:
+                            value['memory_top'] = json.loads(value['memory_top'])
                     value['addtime'] = time.strftime('%m/%d %H:%M',time.localtime(float(value['addtime'])))
-                    if tomem and value['mem'] > 100: value['mem'] = value['mem'] / mPre
+                    if tomem and 'mem' in value and  value['mem'] > 100: value['mem'] = value['mem'] / mPre
                     if tomem in [None]:
                         if type(value['down_packets']) == str:
                             value['down_packets'] = json.loads(value['down_packets'])
@@ -409,7 +583,9 @@ class ajax:
                     count = 0
                 except: continue
             return tmp
-        
+
+
+
     def GetInstalleds(self,softlist):
         softs = ''
         for soft in softlist['data']:
@@ -421,7 +597,7 @@ class ajax:
         return softs
 
 
-    
+
     #获取SSH爆破次数
     def get_ssh_intrusion(self):
         fp = open('/var/log/secure','rb')
@@ -498,7 +674,7 @@ class ajax:
 
 
 
-
+    #  更新面板
     def UpdatePanel(self,get):
         try:
             if not public.IsRestart(): return public.return_msg_gettext(False,'Please run the program when all install tasks finished!')
@@ -541,7 +717,20 @@ class ajax:
                 if os.path.exists('/www/server/panel/data/is_beta.pl'):
                     updateInfo['is_beta'] = 1
                 session['updateInfo'] = updateInfo
-                
+
+
+            # 输出忽略的版本
+            updateInfo['ignore'] = []
+            no_path = '{}/data/no_update.pl'.format(public.get_panel_path())
+            if os.path.exists(no_path):
+                try:
+                    updateInfo['ignore'] = json.loads(public.readFile(no_path))
+                except:
+                    pass
+
+            # 重启面板 默认开启系统监控
+            public.writeFile('data/control.conf', '30')
+
             #检查是否需要升级
             if not hasattr(get,'toUpdate'):
                 if updateInfo['is_beta'] == 1:
@@ -571,21 +760,7 @@ class ajax:
                 public.ExecShell("/etc/init.d/bt start")
                 public.writeFile('data/restart.pl','True')
                 return public.return_msg_gettext(True,'Successful to update to {}',(updateInfo['version'],))
-            
-            #输出新版本信息
-            data = {
-                'status' : True,
-                'version': updateInfo['version'],
-                'updateMsg' : updateInfo['updateMsg']
-            }
-            # 输出忽略的版本
-            updateInfo['ignore'] = []
-            no_path = '{}/data/no_update.pl'.format(public.get_panel_path())
-            if os.path.exists(no_path):
-                try:
-                    updateInfo['ignore'] = json.loads(public.readFile(no_path))
-                except:
-                    pass
+
             public.ExecShell('rm -rf /www/server/phpinfo/*')
             return public.returnMsg(True,updateInfo)
         except Exception as ex:
@@ -619,19 +794,19 @@ class ajax:
         if not os.path.exists(filename): return public.return_msg_gettext(False,'Requested PHP version does NOT exist!')
         phpini = public.readFile(filename)
         data = {}
-        rep = "disable_functions\s*=\s{0,1}(.*)\n"
+        rep = "disable_functions\\s*=\\s{0,1}(.*)\n"
 
         tmp = re.search(rep,phpini)
         if tmp:
             data['disable_functions'] = tmp.groups()[0]
         
-        rep = "upload_max_filesize\s*=\s*([0-9]+)(M|m|K|k)"
+        rep = r"upload_max_filesize\s*=\s*([0-9]+)(M|m|K|k)"
 
         tmp = re.search(rep,phpini)
         if tmp:
             data['max'] = tmp.groups()[0]
         
-        rep = u"\n;*\s*cgi\.fix_pathinfo\s*=\s*([0-9]+)\s*\n"
+        rep = u"\n;*\\s*cgi\\.fix_pathinfo\\s*=\\s*([0-9]+)\\s*\n"
         tmp = re.search(rep,phpini)
         if tmp:
             if tmp.groups()[0] == '0':
@@ -732,6 +907,13 @@ class ajax:
         if 'tmp_login_id' in session:
             return public.return_msg_gettext(False,'Permission denied!')
 
+        # 备份近100条日志
+        new_bak = public.M('logs').limit('100').select()
+        if len(new_bak) > 3:
+            bak_file = '{}/data/logs.bak'.format(public.get_panel_path())
+            public.writeFile(bak_file,json.dumps(new_bak))
+        public.add_security_logs("清空日志", '清空所有日志条数为:{}'.format(public.M('logs').count()))
+        # 清空日志
         public.M('logs').where('id>?',(0,)).delete()
         public.write_log_gettext('Panel setting','Panel Logs emptied!')
         return public.return_msg_gettext(True,'Panel Logs emptied!')
@@ -802,27 +984,28 @@ class ajax:
             if i == "nginx":
                 if not os.path.exists("/www/server/panel/vhost/apache/phpmyadmin.conf"):
                     return public.return_msg_gettext(False, 'Did not find the apache phpmyadmin ssl configuration file, please try to close the ssl port settings before opening')
-                rep = "listen\s*([0-9]+)\s*.*;"
+                rep = r"listen\s*([0-9]+)\s*.*;"
                 oldPort = re.search(rep, conf)
                 if not oldPort:
                     return public.return_msg_gettext(False, 'Did not detect the port that nginx phpmyadmin listens, please confirm whether the file has been manually modified.')
                 oldPort = oldPort.groups()[0]
                 conf = re.sub(rep, 'listen ' + get.port + ' ssl;', conf)
             else:
-                rep = "Listen\s*([0-9]+)\s*\n"
+                rep = r"Listen\s*([0-9]+)\s*\n"
                 oldPort = re.search(rep, conf)
                 if not oldPort:
                     return public.return_msg_gettext(False, 'Did not detect the port that apache phpmyadmin listens, please confirm whether the file has been manually modified.')
                 oldPort = oldPort.groups()[0]
                 conf = re.sub(rep, "Listen " + get.port + "\n", conf, 1)
-                rep = "VirtualHost\s*\*:[0-9]+"
+                rep = r"VirtualHost\s*\*:[0-9]+"
                 conf = re.sub(rep, "VirtualHost *:" + get.port, conf, 1)
             if oldPort == get.port: return public.return_msg_gettext(False, 'Port [{}] is in use!',(get.port,))
             public.writeFile(file, conf)
             public.serviceReload()
             if i=="apache":
                 import firewalls
-                get.ps = public.getMsg('New phpMyAdmin Port')
+                # aapanel 使用 get_msg_gettext
+                get.ps = public.get_msg_gettext('New phpMyAdmin SSL Port')
                 fw = firewalls.firewalls()
                 fw.AddAcceptPort(get)
                 public.serviceReload()
@@ -865,7 +1048,7 @@ class ajax:
         #AUTH_END
 """
         # nginx配置文件
-            ssl_conf = """server
+            ssl_conf = r"""server
     {
         listen 887 ssl;
         server_name phpmyadmin;
@@ -912,7 +1095,7 @@ class ajax:
         #AUTH_END
             """
             # apache配置
-            ssl_conf = '''Listen 887
+            ssl_conf = r'''Listen 887
 <VirtualHost *:887>
     ServerAdmin webmaster@example.com
     DocumentRoot "/www/server/phpmyadmin"
@@ -951,6 +1134,13 @@ class ajax:
     </Directory>
 </VirtualHost>'''.format(public.get_php_proxy(v["ext"]["phpversion"],'apache'),auth)
             public.writeFile("/www/server/panel/vhost/apache/phpmyadmin.conf", ssl_conf)
+
+            import firewalls
+            fw = firewalls.firewalls()
+            fw.AddAcceptPort(public.to_dict_obj({
+                'port': '887',
+                'ps': public.get_msg_gettext('New phpMyAdmin SSL Port'),
+            }))
         else:
             if os.path.exists("/www/server/panel/vhost/nginx/phpmyadmin.conf"):
                 os.remove("/www/server/panel/vhost/nginx/phpmyadmin.conf")
@@ -994,12 +1184,16 @@ class ajax:
                 tmp = re.search(reg,conf)
                 if tmp:
                     oldPort = tmp.groups(1)
+
+                    ## 修复 openlitespeed 修改端口报错
+                    oldPort = oldPort[0]
+
                 conf = re.sub(reg,"address *:{}".format(get.port),conf)
-            if oldPort == get.port: return public.returnMsg(False,'Port [{}] is in use!',(get.port,))
+            if oldPort == get.port: return public.return_msg_gettext(False,'Port [{}] is in use!',(get.port,))
             
             public.writeFile(filename,conf)
             import firewalls
-            get.ps = public.getMsg('New phpMyAdmin Port')
+            get.ps = public.get_msg_gettext('New phpMyAdmin Port')
             fw = firewalls.firewalls()
             fw.AddAcceptPort(get)
             public.serviceReload()
@@ -1144,9 +1338,9 @@ class ajax:
         conf = public.readFile('/etc/init.d/memcached')
         result = {}
         result['bind'] = re.search('IP=(.+)',conf).groups()[0]
-        result['port'] = int(re.search('PORT=(\d+)',conf).groups()[0])
-        result['maxconn'] = int(re.search('MAXCONN=(\d+)',conf).groups()[0])
-        result['cachesize'] = int(re.search('CACHESIZE=(\d+)',conf).groups()[0])
+        result['port'] = int(re.search(r'PORT=(\d+)',conf).groups()[0])
+        result['maxconn'] = int(re.search(r'MAXCONN=(\d+)',conf).groups()[0])
+        result['cachesize'] = int(re.search(r'CACHESIZE=(\d+)',conf).groups()[0])
         tn = telnetlib.Telnet(result['bind'],result['port'])
         tn.write(b"stats\n")
         tn.write(b"quit\n")
@@ -1171,9 +1365,9 @@ class ajax:
         confFile = '/etc/init.d/memcached'
         conf = public.readFile(confFile)
         conf = re.sub('IP=.+','IP='+get.ip,conf)
-        conf = re.sub('PORT=\d+','PORT='+get.port,conf)
-        conf = re.sub('MAXCONN=\d+','MAXCONN='+get.maxconn,conf)
-        conf = re.sub('CACHESIZE=\d+','CACHESIZE='+get.cachesize,conf)
+        conf = re.sub(r'PORT=\d+','PORT='+get.port,conf)
+        conf = re.sub(r'MAXCONN=\d+','MAXCONN='+get.maxconn,conf)
+        conf = re.sub(r'CACHESIZE=\d+','CACHESIZE='+get.cachesize,conf)
         public.writeFile(confFile,conf)
         public.ExecShell(confFile + ' reload')
         return public.return_msg_gettext(True,'Setup successfully!')
@@ -1182,8 +1376,8 @@ class ajax:
     def GetRedisStatus(self,get):
         import re
         c = public.readFile('/www/server/redis/redis.conf')
-        port = re.findall('\n\s*port\s+(\d+)',c)[0]
-        password = re.findall('\n\s*requirepass\s+(.+)',c)
+        port = re.findall('\n\\s*port\\s+(\\d+)',c)[0]
+        password = re.findall('\n\\s*requirepass\\s+(.+)',c)
         if password: 
             password = ' -a ' + password[0]
         else:
@@ -1242,115 +1436,11 @@ class ajax:
     #取指定日志
     def GetOpeLogs(self,get):
         if not os.path.exists(get.path): return public.return_msg_gettext(False,'Log file does NOT exist!')
-        return public.returnMsg(True,public.GetNumLines(get.path,1000))
+        return public.returnMsg(True,public.xsssec(public.GetNumLines(get.path,1000)))
 
-    def get_pd(self,get):
-        from BTPanel import cache
-        tmp = -1
-        try:
-            import panelPlugin
-            # get = public.dict_obj()
-            # get.init = 1
-            tmp1 = panelPlugin.panelPlugin().get_cloud_list(get)
-        except:
-            tmp1 = None
-        if tmp1:
-            tmp = tmp1[public.to_string([112, 114, 111])]
-            ltd = tmp1.get('ltd', -1)
-        else:
-            ltd = -1
-            tmp4 = cache.get(public.to_string([112, 95, 116, 111, 107, 101, 110]))
-            if tmp4:
-                tmp_f = public.to_string([47, 116, 109, 112, 47]) + tmp4
-                if not os.path.exists(tmp_f): public.writeFile(tmp_f, '-1')
-                tmp = public.readFile(tmp_f)
-                if tmp: tmp = int(tmp)
-        if not ltd: ltd = -1
-        if tmp == None: tmp = -1
-        if ltd < 1:
-            if ltd == -2:
-                tmp3 = public.to_string(
-                    [60, 115, 112, 97, 110, 32, 99, 108, 97, 115, 115, 61, 34, 98, 116, 108, 116, 100,
-                     45, 103, 114, 97, 121, 34, 62, 60, 115, 112, 97, 110, 32, 115, 116, 121, 108, 101,
-                     61, 34, 99, 111, 108, 111, 114, 58, 32, 35, 102, 99, 54, 100, 50, 54, 59, 102, 111,
-                     110, 116, 45, 119, 101, 105, 103, 104, 116, 58, 32, 98, 111, 108, 100, 59, 109, 97,
-                     114, 103, 105, 110, 45, 114, 105, 103, 104, 116, 58, 53, 112, 120, 34, 62, 24050, 36807,
-                     26399, 60, 47, 115, 112, 97, 110, 62, 60, 97, 32, 99, 108, 97, 115, 115, 61, 34, 98, 116,
-                     108, 105, 110, 107, 34, 32, 111, 110, 99, 108, 105, 99, 107, 61, 34, 98, 116, 46, 115, 111,
-                     102, 116, 46, 117, 112, 100, 97, 116, 97, 95, 108, 116, 100, 40, 41, 34, 62, 82, 69, 78, 69, 87,
-                     60, 47, 97,
-                     62, 60, 47, 115, 112, 97, 110, 62])
-            elif tmp == -1:
-                tmp3 = public.to_string([60, 115, 112, 97, 110, 32, 99, 108, 97, 115, 115, 61, 34, 98,
-                                         116, 112, 114, 111, 45, 102, 114, 101, 101, 34, 32, 111, 110, 99, 108, 105, 99,
-                                         107,
-                                         61, 34, 98, 116, 46, 115, 111, 102, 116, 46, 114, 101, 110, 101, 119, 95, 112,
-                                         114,
-                                         111, 40, 41, 34, 32, 116, 105, 116, 108, 101, 61, 34, 67, 108, 105, 99, 107,
-                                         32, 116, 111, 32,
-                                         103, 101, 116, 32, 80, 82, 79, 34, 62, 20813, 36153, 29256, 60, 47, 115, 112,
-                                         97, 110, 62])
-            elif tmp == -2:
-                tmp3 = public.to_string([60, 115, 112, 97, 110, 32, 99, 108, 97, 115, 115, 61, 34, 98, 116,
-                                         112, 114, 111, 45, 103, 114, 97, 121, 34, 62, 60, 115, 112, 97, 110, 32,
-                                         115, 116, 121, 108, 101, 61, 34, 99, 111, 108, 111, 114, 58, 32, 35,
-                                         102, 99, 54, 100, 50, 54, 59, 102, 111, 110, 116, 45, 119, 101, 105, 103,
-                                         104, 116, 58, 32, 98, 111, 108, 100, 59, 109, 97, 114, 103, 105, 110, 45,
-                                         114, 105, 103, 104, 116, 58, 53, 112, 120, 34, 62, 24050, 36807, 26399,
-                                         60, 47, 115, 112, 97, 110, 62, 60, 97, 32, 99, 108, 97, 115, 115, 61, 34,
-                                         98, 116, 108, 105, 110, 107, 34, 32, 111, 110, 99, 108, 105, 99, 107, 61,
-                                         34, 98, 116, 46, 115, 111, 102, 116, 46, 114, 101, 110, 101, 119, 95, 112, 114,
-                                         111, 40, 41, 34, 62, 82, 69, 78, 69, 87, 60, 47, 97, 62, 60, 47, 115, 112, 97,
-                                         110, 62])
-            if tmp >= 0 and ltd in [-1, -2]:
-                if tmp == 0:
-                    tmp2 = public.to_string([27704, 20037, 25480, 26435])
-                    tmp3 = public.to_string([60, 115, 112, 97, 110, 32, 99, 108, 97, 115, 115, 61, 34, 98, 116,
-                                             112, 114, 111, 34, 62, 123, 48, 125, 60, 115, 112, 97, 110, 32, 115, 116,
-                                             121, 108, 101, 61, 34, 99, 111, 108, 111, 114, 58, 32, 35, 102, 99, 54,
-                                             100,
-                                             50, 54, 59, 102, 111, 110, 116, 45, 119, 101, 105, 103, 104, 116,
-                                             58, 32, 98, 111, 108, 100, 59, 34, 62, 123, 49, 125, 60, 47, 115,
-                                             112, 97, 110, 62, 60, 47, 115, 112, 97, 110, 62]).format(
-                        public.to_string([21040, 26399, 26102, 38388, 65306]), tmp2)
-                else:
-                    tmp2 = time.strftime(public.to_string([37, 89, 45, 37, 109, 45, 37, 100]), time.localtime(tmp))
-                    tmp3 = public.to_string([60, 115, 112, 97, 110, 32, 99, 108, 97, 115, 115, 61, 34, 98, 116,
-                                             112, 114, 111, 34, 62, 69, 120, 112, 105, 114, 101, 58, 32, 60, 115, 112,
-                                             97, 110, 32, 115, 116, 121, 108, 101, 61, 34, 99, 111, 108, 111, 114,
-                                             58, 32, 35, 102, 99, 54, 100, 50, 54, 59, 102, 111, 110, 116, 45, 119,
-                                             101, 105, 103, 104, 116, 58, 32, 98, 111, 108, 100, 59, 109, 97, 114,
-                                             103, 105, 110, 45, 114, 105, 103, 104, 116, 58, 53, 112, 120, 34, 62, 123,
-                                             48, 125, 60, 47, 115, 112, 97, 110, 62, 60, 97, 32, 99, 108, 97, 115,
-                                             115, 61, 34, 98, 116, 108, 105, 110, 107, 34, 32, 111, 110, 99, 108, 105,
-                                             99,
-                                             107, 61, 34, 98, 116, 46, 115, 111, 102, 116, 46, 114, 101, 110, 101, 119,
-                                             95,
-                                             112, 114, 111, 40, 41, 34, 62, 82, 69, 78, 69, 87, 60, 47, 97, 62, 60,
-                                             47, 115, 112, 97, 110, 62]).format(tmp2)
-            else:
-                tmp3 = public.to_string([60, 115, 112, 97, 110, 32, 99, 108, 97, 115, 115, 61, 34, 98, 116, 112,
-                                         114, 111, 45, 103, 114, 97, 121, 34, 32, 111, 110, 99, 108, 105, 99, 107,
-                                         61, 34, 98, 116, 46, 115, 111, 102, 116, 46, 117, 112, 100, 97, 116, 97, 95, 112,
-                                         114, 111, 40, 41, 34, 32, 116, 105, 116, 108, 101, 61, 34, 67, 108, 105, 99,
-                                         107, 32, 116,
-                                         111, 32, 103, 101, 116, 32, 80, 82, 79, 34, 62, 70, 82,
-                                         69, 69, 60, 47, 115, 112, 97, 110, 62])
-        else:
-            tmp3 = public.to_string([60, 115, 112, 97, 110, 32, 99, 108, 97, 115, 115, 61, 34, 98, 116, 108, 116,
-                                     100, 34, 62, 69, 120, 112, 105, 114, 101, 58, 32, 60, 115, 112, 97, 110, 32, 115,
-                                     116,
-                                     121, 108, 101, 61, 34, 99, 111, 108, 111, 114, 58, 32, 35, 102, 99, 54, 100, 50,
-                                     54, 59, 102, 111, 110, 116, 45, 119, 101, 105, 103, 104, 116, 58, 32, 98, 111,
-                                     108, 100, 59, 109, 97, 114, 103, 105, 110, 45, 114, 105, 103, 104, 116, 58, 53,
-                                     112, 120, 34, 62, 123, 125, 60, 47, 115, 112, 97, 110, 62, 60, 97, 32, 99, 108,
-                                     97, 115, 115, 61, 34, 98, 116, 108, 105, 110, 107, 34, 32, 111, 110, 99, 108, 105,
-                                     99, 107, 61, 34, 98, 116, 46, 115, 111, 102, 116, 46, 114, 101, 110, 101, 119, 95,
-                                     112, 114, 111, 40, 41, 34, 62, 82, 69, 78, 69, 87, 60, 47, 97, 62, 60, 47, 115,
-                                     112, 97, 110, 62]).format(
-                time.strftime(public.to_string([37, 89, 45, 37, 109, 45, 37, 100]), time.localtime(ltd)))
-
-        return tmp3, tmp, ltd
+    # 获取授权信息
+    def get_pd(self, get):
+        return public.get_pd(get)
 
     #检查用户绑定是否正确
     def check_user_auth(self,get):
@@ -1405,10 +1495,12 @@ class ajax:
     #取指定行
     def get_lines(self,args):
         if not os.path.exists(args.filename): return public.returnMsg(False,'Logs emptied')
-        s_body = public.ExecShell("tail -n {} {}".format(args.num,args.filename))[0]
+        num = args.get('num/d',10)
+        s_body = public.GetNumLines(args.filename,num)
         return public.returnMsg(True,s_body)
 
     def log_analysis(self,get):
+        public.set_module_logs('log_analysis', 'log_analysis', 1)
         import log_analysis
         log_analysis=log_analysis.log_analysis()
         return log_analysis.log_analysis(get)
@@ -1439,16 +1531,44 @@ class ajax:
         """
             @name 获取推荐列表
         """
+        # spath = '{}/data/pay_type.json'.format(public.get_panel_path())
+        # if not os.path.exists(spath):
+        #     public.run_thread(self.download_pay_type,(spath,))
+        # try:
+        #     data = json.loads(public.readFile("data/pay_type.json"))
+        # except:
+        #     public.run_thread(self.download_pay_type, (spath,))
+        #     data = {}
+        #
+        # import panelPlugin
+        # plu_panel = panelPlugin.panelPlugin()
+        # plugin_list = plu_panel.get_cloud_list()
+        # if not 'pro' in plugin_list: plugin_list['pro'] = -1
+        #
+        # for item in data:
+        #     if 'list' in item:
+        #         item['list'] = self.__get_home_list(item['list'], item['type'], plugin_list, plu_panel)
+        #         if item['type'] == 1:
+        #             if len(item['list']) > 4: item['list'] = item['list'][:4]
+        #     # if item['type'] == 0 and plugin_list['pro'] >= 0:
+        #     #     item['show'] = False
+        #
+        # return data
+
         spath = '{}/data/pay_type.json'.format(public.get_panel_path())
-        down = cache.get('pay_type')
-        if not down:
+        if os.path.exists(spath) and os.path.getsize(spath) <= 0:
+            os.remove(spath)
+
+        if not os.path.exists(spath):
             public.run_thread(self.download_pay_type, (spath,))
-            cache.set('pay_type', 1, 86400)
         try:
             data = json.loads(public.readFile("data/pay_type.json"))
-        except:
+        except json.decoder.JSONDecodeError:
+            os.remove(spath)
             public.run_thread(self.download_pay_type, (spath,))
-            data = {}
+            data = json.loads(public.readFile("data/pay_type.json"))
+        except Exception:
+            data = self.get_default_pay_type()
 
         import panelPlugin
         plu_panel = panelPlugin.panelPlugin()
@@ -1457,12 +1577,102 @@ class ajax:
 
         for item in data:
             if 'list' in item:
-                item['list'] = self.__get_home_list(item['list'], item['type'], plugin_list, plu_panel)
+                item['list'] = self.__get_home_list(item['list'], item['type'],plugin_list, plu_panel)
                 if item['type'] == 1:
                     if len(item['list']) > 4: item['list'] = item['list'][:4]
             # if item['type'] == 0 and plugin_list['pro'] >= 0:
             #     item['show'] = False
         return data
+
+
+    @staticmethod
+    def get_default_pay_type():
+        spath = '{}/data/default_pay_type.json'.format(public.get_panel_path())
+        default = [{"type": -1}, {"type": -1}, {"type": -1}, {"type": -1},
+                   {"type": -1}, {
+            "type": 5,
+            "describe": "网站-设置推荐",
+            "show": True,
+            "list": [
+                {
+                    "title": "防火墙",
+                    "name": "btwaf",
+                    "pay": "46",
+                    "pluginName": "Nginx网站防火墙",
+                    "ps": "有效拦截SQL 注入、XSS跨站、恶意代码、网站挂马等常见攻击，过滤恶意访问，降低数据泄露的风险，保障网站的可用性。",
+                    "preview": "https://www.bt.cn/new/product_nginx_firewall.html",
+                    "dependent": "nginx",
+                    "pluginType": "pro",
+                    "eventList": [
+                        {
+                            "event": "site_waf_config('$siteName')",
+                            "version": "5.2.0"
+                        }
+                    ]
+                },
+                {
+                    "title": "防火墙",
+                    "name": "btwaf_httpd",
+                    "pay": "46",
+                    "pluginName": "网站防火墙",
+                    "ps": "有效拦截SQL 注入、XSS跨站、恶意代码、网站挂马等常见攻击，过滤恶意访问，降低数据泄露的风险，保障网站的可用性。",
+                    "preview": "https://www.bt.cn/new/product_nginx_firewall.html",
+                    "dependent": "apache",
+                    "pluginType": "pro",
+                    "eventList": [
+                        {
+                            "event": "site_waf_config('$siteName')",
+                            "version": "5.2.0"
+                        }
+                    ]
+                },
+                {
+                    "title": "统计",
+                    "name": "total",
+                    "pay": "47",
+                    "pluginName": "网站监控报表",
+                    "ps": "快速分析网站运行状况，实时精确统计网站流量、ip、uv、pv、请求、蜘蛛等数据，网站SEO优化利器",
+                    "preview": "https://www.bt.cn/new/product_website_total.html",
+                    "dependent": "apache",
+                    "pluginType": "pro",
+                    "eventList": [
+                        {
+                            "event": "WebsiteReport('$siteName')",
+                            "version": "5.0"
+                        }
+                    ]
+                },
+                {
+                    "title": "统计",
+                    "name": "total",
+                    "pay": "47",
+                    "pluginName": "网站监控报表",
+                    "ps": "快速分析网站运行状况，实时精确统计网站流量、ip、uv、pv、请求、蜘蛛等数据，网站SEO优化利器",
+                    "preview": "https://www.bt.cn/new/product_website_total.html",
+                    "dependent": "nginx",
+                    "pluginType": "pro",
+                    "eventList": [
+                        {
+                            "event": "WebsiteReport('$siteName')",
+                            "version": "5.0"
+                        }
+                    ]
+                }
+            ]
+        }, {"type": -1}, {"type": -1}]
+        if os.path.isfile(spath):
+            try:
+                res_data = json.loads(public.readFile(spath))
+                if isinstance(res_data, list):
+                    return res_data
+            except json.JSONDecodeError:
+                pass
+            # 再次出错时，保障网站列表可以展示
+            return default
+        return default
+
+
+
 
     def __get_home_list(self, sList, stype, plugin_list, plu_panel):
         """

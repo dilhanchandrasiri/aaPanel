@@ -1,0 +1,1 @@
+System.register(["./index-legacy.js?v=1723125373998","./vue-legacy.js?v=1723125373998","./pinia-legacy.js?v=1723125373998"],(function(e,t){"use strict";var n,s,i,a,c;return{setters:[e=>{n=e.cR},e=>{s=e.l,i=e.x,a=e.S,c=e.Z},null],execute:function(){const t={id:"soft-main"};e("default",s({__name:"index",setup:e=>(i((async()=>{await n()})),(e,n)=>(a(),c("div",t)))}))}}}));

@@ -1,10 +1,10 @@
 #coding: utf-8
 # +-------------------------------------------------------------------
-# | 宝塔Linux面板 x3
+# | aaPanel x3
 # +-------------------------------------------------------------------
-# | Copyright (c) 2015-2016 宝塔软件(http://bt.cn) All rights reserved.
+# | Copyright (c) 2015-2016 aaPanel(www.aapanel.com) All rights reserved.
 # +-------------------------------------------------------------------
-# | Author: hwliang <hwl@bt.cn>
+# | Author: hwliang <hwl@aapanel.com>
 # +-------------------------------------------------------------------
 import psutil,time,os,public,re,sys
 try:
@@ -25,6 +25,7 @@ class system:
             session['config'] = public.M('config').where("id=?",('1',)).field('webserver,sites_path,backup_path,status,mysql_root').find()
         if not 'email' in session['config']:
             session['config']['email'] = public.M('users').where("id=?",('1',)).getField('email')
+        data = {}
         data = session['config']
         data['webserver'] = public.get_webserver()
         #PHP版本
@@ -34,7 +35,7 @@ class system:
         
         for version in phpVersions:
             tmp = {}
-            tmp['setup'] = os.path.exists(self.setupPath + '/php/'+version+'/bin/php');
+            tmp['setup'] = os.path.exists(self.setupPath + '/php/'+version+'/bin/php')
             if tmp['setup']:
                 phpConfig = self.GetPHPConfig(version)
                 tmp['version'] = version
@@ -60,7 +61,7 @@ class system:
             try:
                 if os.path.exists(configFile):
                     conf = public.readFile(configFile)
-                    rep = "listen\s+([0-9]+)\s*;"
+                    rep = r"listen\s+([0-9]+)\s*;"
                     rtmp = re.search(rep,conf)
                     if rtmp:
                         phpport = rtmp.groups()[0]
@@ -69,7 +70,7 @@ class system:
                     if conf.find(self.setupPath + '/stop') == -1: pstatus = True
                     configFile = self.setupPath + '/nginx/conf/enable-php.conf'
                     conf = public.readFile(configFile)
-                    rep = "php-cgi-([0-9]+)\.sock"
+                    rep = r"php-cgi-([0-9]+)\.sock"
                     rtmp = re.search(rep,conf)
                     if rtmp:
                         phpversion = rtmp.groups()[0]
@@ -84,11 +85,11 @@ class system:
             try:
                 if os.path.exists(configFile):
                     conf = public.readFile(configFile)
-                    rep = "php-cgi-([0-9]+)\.sock"
+                    rep = r"php-cgi-([0-9]+)\.sock"
                     rtmp = re.search(rep,conf)
                     if rtmp:
                         phpversion = rtmp.groups()[0]
-                    rep = "Listen\s+([0-9]+)\s*\n"
+                    rep = "Listen\\s+([0-9]+)\\s*\n"
                     rtmp = re.search(rep,conf)
                     if rtmp:
                         phpport = rtmp.groups()[0]
@@ -104,12 +105,12 @@ class system:
             try:
                 if os.path.exists(configFile):
                     conf = public.readFile('/www/server/panel/vhost/openlitespeed/detail/phpmyadmin.conf')
-                    rep = "/usr/local/lsws/lsphp(\d+)/bin/lsphp"
+                    rep = r"/usr/local/lsws/lsphp(\d+)/bin/lsphp"
                     rtmp = re.search(rep,conf)
                     if rtmp:
                         phpversion = rtmp.groups()[0]
                     conf = public.readFile('/www/server/panel/vhost/openlitespeed/listen/888.conf')
-                    rep = "address\s+\*\:(\d+)"
+                    rep = r"address\s+\*\:(\d+)"
                     rtmp = re.search(rep,conf)
                     if rtmp:
                         phpport = rtmp.groups()[0]
@@ -166,8 +167,8 @@ class system:
         tmp['status'] = os.path.exists('/var/run/pure-ftpd.pid')
         data['pure-ftpd'] = tmp
         data['panel'] = self.GetPanelInfo()
-        data['systemdate'] = public.format_date("%Y-%m-%d %H:%M:%S %Z %z") #public.ExecShell('date +"%Y-%m-%d %H:%M:%S %Z %z"')[0].strip()
-        
+        data['systemdate'] = public.ExecShell('date +"%Y-%m-%d %H:%M:%S %Z %z"')[0].strip();
+        data['show_workorder'] = not os.path.exists('data/not_workorder.pl')
         return data
     
     def GetPanelInfo(self,get=None):
@@ -176,15 +177,15 @@ class system:
         try:
             port = public.GetHost(True)
         except:
-            port = '8888'
+            port = '7800';
         domain = ''
         if os.path.exists('data/domain.conf'):
-           domain = public.readFile('data/domain.conf')
+           domain = public.readFile('data/domain.conf');
         
         autoUpdate = ''
-        if os.path.exists('data/autoUpdate.pl'): autoUpdate = 'checked'
+        if os.path.exists('data/autoUpdate.pl'): autoUpdate = 'checked';
         limitip = ''
-        if os.path.exists('data/limitip.conf'): limitip = public.readFile('data/limitip.conf')
+        if os.path.exists('data/limitip.conf'): limitip = public.readFile('data/limitip.conf');
         admin_path = '/'
         if os.path.exists('data/admin_path.pl'): admin_path = public.readFile('data/admin_path.pl').strip()
         
@@ -193,8 +194,8 @@ class system:
         #    if os.path.isdir('templates/' + template): templates.append(template);
         template = public.GetConfigValue('template')
         
-        check502 = ''
-        if os.path.exists('data/502Task.pl'): check502 = 'checked'
+        check502 = '';
+        if os.path.exists('data/502Task.pl'): check502 = 'checked';
         return {'port':port,'address':address,'domain':domain,'auto':autoUpdate,'502':check502,'limitip':limitip,'templates':templates,'template':template,'admin_path':admin_path}
     
     def GetPHPConfig(self,version):
@@ -205,13 +206,13 @@ class system:
         phpfpm = public.readFile(file)
         data = {}
         try:
-            rep = "upload_max_filesize\s*=\s*([0-9]+)M"
+            rep = r"upload_max_filesize\s*=\s*([0-9]+)M"
             tmp = re.search(rep,phpini).groups()
             data['max'] = tmp[0]
         except:
             data['max'] = '50'
         try:
-            rep = "request_terminate_timeout\s*=\s*([0-9]+)\n"
+            rep = "request_terminate_timeout\\s*=\\s*([0-9]+)\n"
             tmp = re.search(rep,phpfpm).groups()
             data['maxTime'] = tmp[0]
         except:
@@ -274,8 +275,8 @@ class system:
         return data
     
     def GetTitle(self):
-        return public.GetConfigValue('title')
-    
+        return public.xss_version(public.GetConfigValue('title'))
+
     def GetSystemVersion(self):
         #取操作系统版本
         key = 'sys_version'
@@ -312,7 +313,7 @@ class system:
         cpuW = len(set(d_tmp))
         import threading
         p = threading.Thread(target=self.get_cpu_percent_thead,args=(interval,))
-        p.setDaemon(True)
+        # p.setDaemon(True)
         p.start()
 
         used = cache.get('cpu_used_all')
@@ -392,14 +393,14 @@ class system:
     def GetDiskInfo2(self, human=True):
 
         #取磁盘分区信息
-        key = 'sys_disk'
+        key = f'sys_disk_{human}'
         diskInfo = cache.get(key)
         if diskInfo: return diskInfo
         if human:
-            temp = public.ExecShell("df -hT -P|grep '/'|grep -v tmpfs|grep -v 'snap/core'|grep -v udev|grep -v overlay")[0]
+            temp = public.ExecShell("df -hT -P|grep '/'|grep -v tmpfs|grep -v 'snap/core'|grep -v udev")[0]
         else:
-            temp = public.ExecShell("df -T -P|grep '/'|grep -v tmpfs|grep -v 'snap/core'|grep -v udev|grep -v overlay")[0]
-        tempInodes = public.ExecShell("df -i -P|grep '/'|grep -v tmpfs|grep -v 'snap/core'|grep -v udev|grep -v overlay")[0]
+            temp = public.ExecShell("df -T -P|grep '/'|grep -v tmpfs|grep -v 'snap/core'|grep -v udev")[0]
+        tempInodes = public.ExecShell("df -i -P|grep '/'|grep -v tmpfs|grep -v 'snap/core'|grep -v udev")[0]
         temp1 = temp.split('\n')
         tempInodes1 = tempInodes.split('\n')
         diskInfo = []
@@ -408,16 +409,15 @@ class system:
         for tmp in temp1:
             n += 1
             try:
-                if ',' in tmp:
-                    tmp = re.sub(',\d+','',tmp)
                 inodes = tempInodes1[n-1].split()
-                disk = re.findall(r"^(.+)\s+([\w\.]+)\s+([\w\.]+)\s+([\w\.]+)\s+([\w\.]+)\s+([\d%]{2,4})\s+(/.{0,100})$",tmp.strip())
+                disk = re.findall(r"^(.+)\s+([\w\.]+)\s+([\w\.]+)\s+([\w\.]+)\s+([\w\.]+)\s+([\d%]{2,4})\s+(/.{0,100})$",tmp.strip().replace(',','.'))
                 if disk: disk = disk[0]
                 if len(disk) < 6: continue
-                if disk[2].find('M') != -1: continue
+                # if disk[2].find('M') != -1: continue
                 if disk[2].find('K') != -1: continue
                 if len(disk[6].split('/')) > 10: continue
                 if disk[6] in cuts: continue
+                if str(disk[6]).startswith("/snap"): continue
                 if disk[6].find('docker') != -1: continue
                 if disk[1].strip() in ['tmpfs']: continue
                 arr = {}
@@ -564,6 +564,7 @@ class system:
         networkInfo['downPackets'] = 0
         networkInfo['upPackets'] = 0
         networkIo_list = psutil.net_io_counters(pernic = True)
+
         for net_key in networkIo_list.keys():
             networkIo = networkIo_list[net_key][:4]
             up_key = "{}_up".format(net_key)
@@ -608,7 +609,13 @@ class system:
             networkInfo['load'] = self.GetLoadAverage(get)
             networkInfo['mem'] = self.GetMemInfo(get)
             networkInfo['version'] = session['version']
-            networkInfo['disk'] = self.GetDiskInfo2()
+            disk_list = []
+            for disk in self.GetDiskInfo2(False):
+                disk['size'].append(int(disk['size'][0]) - (int(disk['size'][1]) + int(disk['size'][2])))  # 计算系统占用
+                disk['size'] = list(map(lambda num: f"{round(int(num) / 1048576, 2)}G" if str(num).isdigit() and str(num).find('G') == -1 else num, disk['size']))
+                disk['inodes'] = list(map(lambda num: f"{round(int(num) / 1048576, 2)}G" if str(num).isdigit() and str(num).find('G') == -1 else num, disk['inodes']))
+                disk_list.append(disk)
+            networkInfo['disk'] = disk_list
 
         networkInfo['title'] = self.GetTitle()
         networkInfo['time'] = self.GetBootTime()
@@ -617,7 +624,9 @@ class system:
         networkInfo['database_total'] = public.M('databases').count()
         networkInfo['system'] = self.GetSystemVersion()
         networkInfo['installed'] = self.CheckInstalled()
+
         import panelSSL
+
         networkInfo['user_info'] = panelSSL.panelSSL().GetUserInfo(None)
         networkInfo['up'] = round(float(networkInfo['up']),2)
         networkInfo['down'] = round(float(networkInfo['down']),2)
@@ -677,7 +686,7 @@ class system:
         #取网络流量信息
         import time;
         pnet = public.readFile('/proc/net/dev')
-        rep = '([^\s]+):[\s]{0,}(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)'
+        rep = r'([^\s]+):[\s]{0,}(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)'
         pnetall = re.findall(rep,pnet)
         networkInfo = {}
         networkInfo['upTotal'] = networkInfo['downTotal'] = networkInfo['up'] = networkInfo['down'] = networkInfo['downPackets'] = networkInfo['upPackets'] = 0
@@ -771,7 +780,7 @@ class system:
             if not os.path.exists(mypath): return False
             public.set_mode(mypath,644)
             mycnf = public.readFile(mypath)
-            tmp = re.findall('datadir\s*=\s*(.+)',mycnf)
+            tmp = re.findall(r'datadir\s*=\s*(.+)',mycnf)
             if not tmp: return False
             datadir = tmp[0]
 
@@ -902,10 +911,54 @@ class system:
             public.ExecShell('pkill -9 nginx && sleep 1')
             public.ExecShell('/etc/init.d/nginx start')
         if get.type != 'test':
-            public.write_log_gettext("Software manager", 'Executed successfully!',(execStr,))
-        if len(result[1]) > 1 and get.name != 'pure-ftpd' and get.name != 'redis': return public.return_msg_gettext(False, '<p>Warning message: <p>' + result[1].replace('\n','<br>'))
+            public.write_log_gettext("Software manager", 'Executed successfully [{}]!',(execStr,))
+
+        if get.type != 'stop':
+            n = 0
+            num = 5
+            while not self.check_service_status(get.name):
+                time.sleep(0.5)
+                n += 1
+                if n > num: break
+
+            if not self.check_service_status(get.name):
+                if len(result[1]) > 1 and get.name != 'pure-ftpd' and get.name != 'redis':
+                    return public.returnMsg(False, '<p>failed to activate: <p>' + result[1].replace('\n','<br>'))
+                else:
+                    return public.returnMsg(False,'{} service failed to start'.format(get.name))
+        else:
+            if self.check_service_status(get.name): return public.returnMsg(False, 'Service stop failed!')
         return public.return_msg_gettext(True,'Executed successfully!')
-    
+
+    def check_service_status(self,name):
+        '''
+            @name 检查服务管理状态
+            @author hwliang
+            @param name<string> 服务名称
+            @return bool
+        '''
+        if name in ['mysqld','mariadbd']:
+            return public.is_mysql_process_exists()
+        elif name == 'redis':
+            return public.is_redis_process_exists()
+        elif name == 'pure-ftpd':
+            return public.is_pure_ftpd_process_exists()
+        elif name.find('php-fpm') != -1:
+            return public.is_php_fpm_process_exists(name)
+        elif name == 'nginx':
+            return public.is_nginx_process_exists()
+        elif name in ['httpd','apache']:
+            return public.is_httpd_process_exists()
+        elif name == 'memcached':
+            return public.is_memcached_process_exists()
+        elif name == 'mongodb':
+            return public.is_mongodb_process_exists()
+        else:
+            return True
+
+
+
+
     def RestartServer(self,get):
         if not public.IsRestart(): return public.return_msg_gettext(False,'Please run the program when all install tasks finished!')
         public.ExecShell("sync && init 6 &")
@@ -930,18 +983,20 @@ class system:
     def ReWeb(self,get):
         public.ExecShell("/etc/init.d/bt start")
         public.writeFile('data/restart.pl','True')
+        # 重启面板 默认开启系统监控
+        public.writeFile('data/control.conf', '30')
         return public.return_msg_gettext(True,'Panel restarted')
 
     
     #修复面板
     def RepPanel(self,get):
         public.writeFile('data/js_random.pl','1')
-        public.ExecShell("wget -O update.sh " + public.get_url() + "/install/update6_en.sh && bash update.sh")
+        public.ExecShell("wget --no-check-certificate -O update.sh " + public.get_url() + "/install/update_7.x_en.sh && bash update.sh")
         self.ReWeb(None)
         return True
     
     #升级到专业版
     def UpdatePro(self,get):
-        public.ExecShell("wget -O update.sh " + public.get_url() + "/install/update6_en.sh && bash update.sh")
+        public.ExecShell("wget --no-check-certificate -O update.sh " + public.get_url() + "/install/update_7.x_en.sh && bash update.sh")
         self.ReWeb(None)
         return True

@@ -1,10 +1,10 @@
 #coding: utf-8
 #-------------------------------------------------------------------
-# 宝塔Linux面板
+# aaPanel
 #-------------------------------------------------------------------
-# Copyright (c) 2015-2020 宝塔软件(http:#bt.cn) All rights reserved.
+# Copyright (c) 2015-2020 aaPanel(www.aapanel.com) All rights reserved.
 #-------------------------------------------------------------------
-# Author: zhwen <zhw@bt.cn>
+# Author: zhwen <zhw@aapanel.com>
 #-------------------------------------------------------------------
 
 #------------------------------
@@ -24,7 +24,7 @@ class FileExecuteDeny:
     def get_file_deny(self,args):
         '''
         # 添加某个网站禁止运行PHP
-        author: zhwen<zhw@bt.cn>
+        author: zhwen<zhw@aapanel.com>
         :param args: website 网站名 str
         :return:
         '''
@@ -51,10 +51,12 @@ class FileExecuteDeny:
                 deny_name.append(tmp[-1])
         result = []
         for i in deny_name:
-            reg = '#BEGIN_DENY_{}\n\s*location\s*\~\*\s*\^(.*)\.\*.*\((.*)\)\$'.format(i.replace("|","\|"))
-            deny_directory = re.search(reg,conf).groups()[0]
-            deny_suffix = re.search(reg,conf).groups()[1]
-            result.append({'name':i,'dir':deny_directory,'suffix':deny_suffix})
+            reg = '#BEGIN_DENY_{}\n\\s*location\\s*\\~\\*\\s*\\^(.*)\\.\\*.*\\((.*)\\)\\$'.format(i.replace("|",r"\|"))
+            re_tmp = re.search(reg,conf)
+            if re_tmp:
+                deny_directory = re_tmp.groups()[0]
+                deny_suffix = re_tmp.groups()[1]
+                result.append({'name':i,'dir':deny_directory,'suffix':deny_suffix})
         return result
 
     def _get_apache_file_deny(self):
@@ -71,7 +73,7 @@ class FileExecuteDeny:
                 deny_name.append(tmp[-1])
         result = []
         for i in deny_name:
-            reg = '#BEGIN_DENY_{}\n\s*<Directory\s*\~\s*"(.*)\.\*.*\((.*)\)\$'.format(i.replace("|","\|"))
+            reg = '#BEGIN_DENY_{}\n\\s*<Directory\\s*\\~\\s*"(.*)\\.\\*.*\\((.*)\\)\\$'.format(i.replace("|",r"\|"))
             deny_directory = re.search(reg,conf).groups()[0]
             deny_suffix = re.search(reg,conf).groups()[1]
             result.append({'name':i,'dir':deny_directory,'suffix':deny_suffix})
@@ -91,7 +93,7 @@ class FileExecuteDeny:
                 deny_name.append(tmp[-1])
         result = []
         for i in deny_name:
-            reg = '#BEGIN_DENY_{}\n\s*rules\s*RewriteRule\s*\^(.*)\.\*.*\((.*)\)\$'.format(i.replace("|","\|"))
+            reg = '#BEGIN_DENY_{}\n\\s*rules\\s*RewriteRule\\s*\\^(.*)\\.\\*.*\\((.*)\\)\\$'.format(i.replace("|",r"\|"))
             deny_directory = re.search(reg, conf).groups()[0]
             deny_suffix = re.search(reg,conf).groups()[1]
             result.append({'name':i,'dir':deny_directory,'suffix':deny_suffix})
@@ -100,7 +102,7 @@ class FileExecuteDeny:
     def set_file_deny(self,args):
         '''
         # 添加某个网站禁止运行PHP
-        author: zhwen<zhw@bt.cn>
+        author: zhwen<zhw@aapanel.com>
         :param args: website 网站名 str
         :param args: deny_name 规则名称 str
         :param args: suffix 禁止访问的后续名 str
@@ -113,6 +115,7 @@ class FileExecuteDeny:
         if tmp:
             return tmp
         deny_name = args.deny_name
+        if not re.match(r"^\w+$",deny_name): return public.return_msg_gettext(False,'The rule name can only be composed of letters, numbers, and underscores!')
         dir = args.dir
         suffix = args.suffix
         website = args.website
@@ -142,7 +145,7 @@ class FileExecuteDeny:
         if not conf:
             return False
         if not dir and not suffix:
-            reg = '\s*#BEGIN_DENY_{n}\n(.|\n)*#END_DENY_{n}\n'.format(n=name)
+            reg = '\\s*#BEGIN_DENY_{n}\n(.|\n)*#END_DENY_{n}\n'.format(n=name)
             conf = re.sub(reg,'',conf)
         else:
             if dir[0] != '/':dir = '/'+dir
@@ -165,12 +168,12 @@ class FileExecuteDeny:
         if not conf:
             return False
         if not dir and not suffix:
-            reg = '\s*#BEGIN_DENY_{n}\n(.|\n)*#END_DENY_{n}'.format(n=name)
+            reg = '\\s*#BEGIN_DENY_{n}\n(.|\n)*#END_DENY_{n}'.format(n=name)
             conf = re.sub(reg,'',conf)
         else:
             if dir[0] != '/':dir = '/'+dir
             if dir[-1] != '/':dir = dir+'/'
-            new = '''
+            new = r'''
     #BEGIN_DENY_{n}
         <Directory ~ "{d}.*\.({s})$">
           Order allow,deny
@@ -180,7 +183,7 @@ class FileExecuteDeny:
 '''.format(n=name,d=dir,s=suffix)
             if '#BEGIN_DENY_{}'.format(name) in conf:
                 return True
-            conf = re.sub('#DENY\s*FILES',new+'\n    #DENY FILES',conf)
+            conf = re.sub(r'#DENY\s*FILES',new+'\n    #DENY FILES',conf)
         public.writeFile(self.ap_website_conf,conf)
         return True
 
@@ -189,17 +192,17 @@ class FileExecuteDeny:
         if not conf:
             return False
         if not dir and not suffix:
-            reg = '#BEGIN_DENY_{n}\n(.|\n)*#END_DENY_{n}\s*'.format(n=name)
+            reg = '#BEGIN_DENY_{n}\n(.|\n)*#END_DENY_{n}\\s*'.format(n=name)
             conf = re.sub(reg,'',conf)
         else:
-            new = '''
+            new = r'''
   #BEGIN_DENY_{n}
     rules                   RewriteRule ^{d}.*\.({s})$ - [F,L]
   #END_DENY_{n}
 '''.format(n=name,d=dir,s=suffix)
             if '#BEGIN_DENY_{}'.format(name) in conf:
                 return True
-            conf = re.sub('autoLoadHtaccess\s*1','autoLoadHtaccess        1'+new,conf)
+            conf = re.sub(r'autoLoadHtaccess\s*1','autoLoadHtaccess        1'+new,conf)
         public.writeFile(self.ols_website_conf,conf)
         return True
 
@@ -207,7 +210,7 @@ class FileExecuteDeny:
     def del_file_deny(self,args):
         '''
         # 添加某个网站禁止运行PHP
-        author: zhwen<zhw@bt.cn>
+        author: zhwen<zhw@aapanel.com>
         :param args: website 网站名 str
         :param args: deny_name 规则名称 str
         :return:

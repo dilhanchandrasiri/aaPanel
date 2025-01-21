@@ -34,6 +34,14 @@ var bt = {
             var check = bt.check_exts(fileName, exts);
             return check;
         },
+check_email: function (email) {
+					var reg = /\w[-\w.+]*@([A-Za-z0-9][-A-Za-z0-9]+\.)+[A-Za-z]{2,14}/;
+					return reg.test(email);
+				},
+				check_phone: function (phone) {
+					var reg = /^1(3|4|5|6|7|8|9)\d{9}$/;
+					return reg.test(phone);
+				},
     check_zip: function(fileName) {
         var ext = fileName.split('.');
         var extName = ext[ext.length - 1].toLowerCase();
@@ -322,11 +330,14 @@ var bt = {
     select_path: function(id, type,success,default_path) {
         _this = this;
         _this.set_cookie("SetName", "");
-        if(typeof type !== 'string') success = type,type = 'dir';
+        if (typeof type !== 'string') {
+					success = type;
+					type = 'dir';
+				}
         var loadT = bt.open({
             type: 1,
             area: "680px",
-            title: type === 'all' ? 'Select directories or files' : lan.bt.dir,
+            title: type === 'all' ? 'Select directories or files' : type === 'file' ? lan.bt.file : lan.bt.dir,
             closeBtn: 2,
             shift: 5,
             content: "<div class='changepath'><div class='path-top'><button type='button' id='btn_back' class='btn btn-default btn-sm'><span class='glyphicon glyphicon-share-alt'></span> " + lan.public.return + "</button><div class='place' id='PathPlace'>" + lan.bt.path + "：<span></span></div></div><div class='path-con'><div class='path-con-left'><dl><dt id='changecomlist' >" + lan.bt.comp + "</dt></dl></div><div class='path-con-right'><ul class='default' id='computerDefautl'></ul><div class='file-list divtable'><table id='file-list-table' class='table table-hover' style='border:0 none'><thead><tr class='file-list-head'><th width='5%'></th><th width='38%'>" + lan.bt.filename + "</th><th width='24%'>" + lan.bt.etime + "</th><th width='8%'>" + lan.bt.access + "</th><th width='15%'>" + lan.bt.own + "</th></tr></thead><tbody id='tbody' class='list-list'></tbody></table></div></div></div></div><div class='getfile-btn' style='margin-top:0'><button type='button' class='btn btn-default btn-sm pull-left' onclick='CreateFolder()'>" + lan.bt.adddir + "</button><button type='button' class='btn btn-danger btn-sm mr5' onclick=\"layer.close(getCookie('ChangePath'))\">" + lan.public.close + "</button> <button type='button' id='bt_select' class='btn btn-success btn-sm' >" + lan.bt.path_ok + "</button></div>",
@@ -348,6 +359,9 @@ var bt = {
                         path = $('#tbody tr.active .bt_open_dir').attr('path');
                     }
                     path = bt.rtrim(path, '/');
+										if (path.length === 0) {
+											path = [$("#PathPlace").find("span").text()]
+										}
                     $("#" + id).val(path).change();
                     $("." + id).val(path).change();
                     if(typeof success === "function") success(path)
@@ -398,6 +412,7 @@ var bt = {
     //   }
     },
     get_file_list:function(path, type){
+			type = type || 'dir'
         var _that = this;
         bt.send('GetDir', 'files/GetDir', { path: path, disk: true }, function(rdata) {
             var d = '',a = '',disk = rdata.DISK;
@@ -418,7 +433,7 @@ var bt = {
                         e = e.substring(0, 10) + "..."
                     }
                 }
-                d += "<tr><td><input type=\"checkbox\" /></td><td class=\"bt_open_dir\" path =\"" + rdata.PATH + "/" + g[0] + "\" data-type=\"dir\" title='" + g[0] + "'><span class='glyphicon glyphicon-folder-open'></span><span>" + e + "</span></td><td>" + bt.format_data(g[2]) + "</td><td>" + g[3] + "</td><td>" + g[4] + "</td></tr>"
+                d += "<tr><td>" + ((type === 'all' || type === 'dir') ? '<input type=\"checkbox\" />' : '') + "</td><td class=\"bt_open_dir\" path =\"" + rdata.PATH + "/" + g[0] + "\" data-type=\"dir\" title='" + g[0] + "'><span class='glyphicon glyphicon-folder-open'></span><span>" + e + "</span></td><td>" + bt.format_data(g[2]) + "</td><td>" + g[3] + "</td><td>" + g[4] + "</td></tr>"
             }
 
             if (rdata.FILES != null && rdata.FILES != "") {
@@ -433,7 +448,7 @@ var bt = {
                             e = e.substring(0, 10) + "..."
                         }
                     }
-                    d += "<tr><td>" + (type === 'all' ? '<input type=\"checkbox\" />' : '') + "<td class=\"bt_open_dir\" title='" + g[0] + "' data-type=\"files\" path =\"" + rdata.PATH + "/" + g[0] + "\"><span class='glyphicon glyphicon-file'></span><span>" + e + "</span></td><td>" + bt.format_data(g[2]) + "</td><td>" + g[3] + "</td><td>" + g[4] + "</td></tr>"
+                    d += "<tr><td>" + ((type === 'all' || type === 'file') ? '<input type=\"checkbox\" />' : '') + "<td class=\"bt_open_dir\" title='" + g[0] + "' data-type=\"files\" path =\"" + rdata.PATH + "/" + g[0] + "\"><span class='glyphicon glyphicon-file'></span><span>" + e + "</span></td><td>" + bt.format_data(g[2]) + "</td><td>" + g[3] + "</td><td>" + g[4] + "</td></tr>"
                 }
             }
 
@@ -550,6 +565,64 @@ var bt = {
             fun();
         })
     },
+    	/**
+	 * @description 计算提示弹窗
+	 * @param {Object} config 弹窗对象 {title: 提示标题, msg: 提示内容}
+	 * @param {function} callback 回调函数
+	 */
+	compute_confirm: function (config, callback) {
+		var d = Math.round(Math.random() * 9 + 1),
+			c = Math.round(Math.random() * 9 + 1),
+			t = d + ' + ' + c,
+			e = d + c;
+
+		function submit(index, layero) {
+			var a = $('#vcodeResult'),
+				val = a.val().replace(/ /g, '');
+			if (val == undefined || val == '') {
+				layer.msg(lan.bt.cal_err);
+				return;
+			}
+			if (val != a.data('value')) {
+				layer.msg(lan.bt.cal_err);
+				return;
+			}
+			layer.close(index);
+			if (callback) callback();
+		}
+		layer.open({
+			type: 1,
+			title: config.title,
+			area: '430px',
+			closeBtn: 2,
+			shadeClose: true,
+			btn: [lan['public'].ok, lan['public'].cancel],
+			content:
+				'<div class="bt-form hint_confirm pd30">\
+          <div class="hint_title">\
+            <i class="hint-confirm-icon"></i>\
+            <div class="hint_con">' +
+				config.msg +
+				'</div>\
+          </div>\
+          <div class="vcode">Result：<span class="text">' +
+				t +
+				'</span>=<input type="number" id="vcodeResult" data-value="' +
+				e +
+				'" value=""></div>\
+      </div>',
+			success: function (layero, index) {
+				$('#vcodeResult')
+					.focus()
+					.keyup(function (a) {
+						if (a.keyCode == 13) {
+							submit(index, layero);
+						}
+					});
+			},
+			yes: submit,
+		});
+	},
     to_login: function() {
         layer.confirm(lan.public_backup.login_expire, { title: lan.public_backup.session_expire, icon: 2, closeBtn: 1, shift: 5 }, function() {
             location.reload();
@@ -632,6 +705,7 @@ var bt = {
 				title: config.title ? config.title : false,
 				shadeClose: config.shadeClose ? config.shadeClose : true,
 				closeBtn: config.closeBtn ? config.closeBtn : 0,
+				area: config.area ? config.area : 'auto',
 				scrollbar: true,
 				shade: 0.3,
 			};
@@ -664,6 +738,7 @@ var bt = {
             scrollbar: true,
             shade: 0.3,
             icon: 3,
+						area: config.area ? config.area : 'auto',
             cancel: (config.cancel ? config.cancel : function() {})
         };
         layer.confirm(config.msg, btnObj, function(index) {
@@ -1096,7 +1171,7 @@ var bt = {
                         }
                     }
                 } else {
-                    _tab.append("<tr><td colspan='" + obj.columns.length + "'>" + lan.bt.no_data + "</td></tr>");
+                    _tab.append("<tr><td colspan='" + obj.columns.length + "'>" + obj.empty? obj.empty:lan.bt.no_data + "</td></tr>");
                 }
                 $(obj.table).find('.check').click(function() {
                     var checked = $(this).prop('checked');
@@ -1144,7 +1219,7 @@ var bt = {
     aceEditor: function(obj) {
         var aEditor = {
                 ACE: ace.edit(obj.el, {
-                    theme: "ace/theme/chrome", //主题
+                    theme: obj.theme ? obj.theme : "ace/theme/chrome", // 主题
                     mode: "ace/mode/" + (obj.mode || 'nginx'), // 语言类型
                     wrap: true,
                     showInvisibles: false,
@@ -1220,7 +1295,152 @@ var bt = {
             }
         }
         return that;
-    }
+    },
+	/**
+	 * @description 普通提示弹窗
+	 * @param {Object} config 弹窗对象 {title:标题, msg:提示内容}
+	 * @param {function} callback 确认回调函数
+	 * @param {function} callback1 取消回调函数
+	 */
+	simple_confirm: function (config, callback, callback1) {
+		layer.open({
+			type: 1,
+			title: config.title,
+			area: '430px',
+			closeBtn: 2,
+			shadeClose: false,
+			btn: [lan['public'].ok, lan['public'].cancel],
+			content:
+				'<div class="bt-form hint_confirm pd30">\
+        <div class="hint_title">\
+          <i class="hint-confirm-icon"></i>\
+          <div class="hint_con">' +
+				config.msg +
+				'</div>\
+        </div>\
+      </div>',
+			yes: function (index, layero) {
+				if (callback && typeof callback(index) === 'undefined') layer.close(index);
+			},
+			btn2: function (index) {
+				//取消返回回调
+				if (callback1 && typeof callback1(index) === 'undefined') layer.close(index);
+			},
+			cancel: function (index) {
+				//取消返回回调
+				if (callback1 && typeof callback1(index) === 'undefined') layer.close(index);
+			}
+		});
+	},
+/**
+	 * @description 需求反馈弹窗
+	 * @param {Object} param 配置对象 {title:标题, placeholder:反馈问题pl(可带标签),recover:input框下方提示语, key:反馈问题key, proType:产品类型}
+	 */
+	openFeedback: function (param) {
+		// 需求反馈
+		var openFeed = bt_tools.open({
+			area:['570px','400px'],
+			btn:false,
+			content:'<div id="feedback">\
+			<div class="nps_survey_banner">\
+			<span class="Ftitle"> <i></i> <span style="vertical-align:4px;">'+param.title+'</span> </span>\
+		</div>\
+		<div style="padding: 25px 0 0 40px">\
+			<div class="flex flex-col items-center">\
+				<div id="feedForm"></div>\
+			</div>\
+		</div>\
+		</div>',
+			success:function(that){
+				var id = "x66ed9v07MjVjYjczNTUyMDE0Le8BEdl"
+				bt_tools.send({url:'/config?action=get_nps_new',data:{product_type:param.proType}},function(ress){
+					//请求回调
+					console.log(ress);
+					if(ress.res){
+						id = ress.res[0].id
+					}
+				},{load:'Loading...',verify:false})
+				//打开弹窗后执行的事件
+				that.find('.layui-layer-title').remove()
+				bt_tools.form({
+					el:'#feedForm',
+					form:[
+						{
+							group: {
+								type: 'textarea',
+								name: 'feed',
+								style: {
+									'width': '500px',
+									'min-width': '500px',
+									'min-height': '130px',
+									'line-height': '22px',
+									'padding-top': '10px',
+									'resize': 'none'
+								},
+								tips: { //使用hover的方式显示提示
+									text: param.placeholder,
+									style: { top: '126px', left: '50px' },
+								},
+							}
+						},
+						{
+							group:{
+								name: 'tips',
+								type: 'other',
+								boxcontent:'<div style="color:#20a53a;margin-left:-5px;">'+param.recover+'</div>'
+							}
+						},
+						{
+							group: {
+								type: 'button',
+								size: '',
+								name: 'submitForm',
+								class:'feedBtn',
+								style:'margin:10px auto 0;padding:6px 40px;',
+								title: 'Submit',
+								event: function (formData, element, that) {
+									// 触发submit
+									if(formData.feed == '') {
+										return bt.msg({status:false,msg:'Please fill in the feedback'})
+									}
+									var config = {}
+									config[id] = formData.feed
+									bt_tools.send({url:'config?action=write_nps_new',data:{questions:JSON.stringify(config),rate:0,product_type:param.proType}},function(ress){
+										if(ress.status){
+											openFeed.close()
+											layer.open({
+												title: false,
+												btn: false,
+												shadeClose: true,
+												shade:0.1,
+												closeBtn: 0,
+												skin:'qa_thank_dialog',
+												area: '230px',
+												content: '<div class="qa_thank_box" style="background-color:#F1F9F3;text-align: center;padding: 20px 0;"><img src="/static/img/feedback/QA_like.png" style="width: 55px;"><p style="margin-top: 15px;">Thank you for your participation!</p></div>',
+												success: function (layero,index) {
+													$(layero).find('.layui-layer-content').css({'padding': '0','border-radius': '5px'})
+													$(layero).css({'border-radius': '5px','min-width': '230px'})
+
+													setTimeout(function(){layer.close(index)},3000)
+												}
+											})
+										}
+									},'submit feedback')
+
+								}
+							}
+						}
+					]
+				})
+			},
+			yes:function(){
+				//点击确定时,如果btn:false,当前事件将无法使用
+			},
+			cancel: function () {
+				//点击右上角关闭时,如果btn:false,当前事件将无法使用
+			}
+		})
+},
 };
 
 
@@ -1301,6 +1521,47 @@ bt.pub = {
             })
         })
     },
+		set_ftp_logs: function (type) {
+			var serverName = 'pure-ftpd';
+			var data = 'exec_name=' + type;
+			var typeName = 'enabling ';
+			var TypeName = 'Enabling ';
+			switch (type) {
+				case 'stop':
+					typeName = 'disabling ';
+					TypeName = 'Disabling ';
+					break;
+			}
+			var status = type == 'stop' ? false : true;
+			layer.confirm(
+				'After '+typeName + 'pure-ftpd Logs management,' + (status ? 'all login and operation records of FTP users will be recorded.' : 'it will no longer be possible to record all login and operation records of FTP users. ') + ' Do you want to proceed?',
+				{
+					title: TypeName + serverName + ' logs management',
+					closeBtn: 2,
+					icon: 3,
+					cancel: function () {
+						$('#isFtplog').prop('checked', !status);
+					},
+				},
+				function () {
+					var load = bt.load(TypeName + 'Pure-FTPd logs management, please wait...');
+					bt.send('ftp', 'ftp/set_ftp_logs', data, function (rdata) {
+						load.close();
+						bt.msg(rdata);
+						$('.bt-soft-menu p').eq(3).click();
+					});
+				},
+				function () {
+					$('#isFtplog').prop('checked', !status);
+				}
+			);
+		},
+		get_ftp_logs: function (callback) {
+			bt.send('ftp', 'ftp/set_ftp_logs', { exec_name: 'getlog' }, function (res) {
+				var _status = res.msg === 'start' ? true : false;
+				if (callback) callback(_status);
+			});
+		},
     set_server_status_by: function(data, callback) {
         bt.send('system', 'system/ServiceAdmin', data, function(rdata) {
             if (callback) callback(rdata)
@@ -2634,9 +2895,9 @@ bt.files = {
         },
         get_dir_size: function(path, callback) {
             if (!path) path = this.get_path();
-            var loading = bt.load(lan.public.the);
+            // var loading = bt.load(lan.public.the);
             bt.send('GetDirSize', 'files/GetDirSize', { path: path }, function(rdata) {
-                loading.close();
+                // loading.close();
                 if (callback) callback(rdata);
             })
         },
@@ -3376,6 +3637,7 @@ bt.firewall = {
     set_mstsc_status: function(status, callback) {
         var msg = status == 1 ? lan.firewall.ssh_off_msg : lan.firewall.ssh_on_msg;
         layer.confirm(msg, {
+						icon: 0,
             closeBtn: 2,
             title: lan.public.warning,
             cancel: function() {
@@ -3610,142 +3872,153 @@ bt.soft = {
         }
     },
     pro: {
-        conver_unit: function(name) {
-            var unit = '';
-            switch (name) {
-                case "year":
-                    unit = lan.public_backup.year;
-                    break;
-                case "month":
-                    unit = lan.public_backup.month;
-                    break;
-                case "day":
-                    unit = lan.public_backup.day;
-                    break;
-                case "1month":
-                    unit = lan.public_backup.month;
-                    break;
-                case "3month":
-                    unit = lan.public_backup.month3;
-                    break;
-                case "6month":
-                    unit = lan.public_backup.month6;
-                    break;
-                case "1year":
-                    unit = lan.public_backup.year1;
-                    break;
-                case "2year":
-                    unit = lan.public_backup.year2;
-                    break;
-                case "3year":
-                    unit = lan.public_backup.year3;
-                    break;
-                case "1":
-                    unit = lan.public_backup.month1;
-                    break;
-                case "3":
-                    unit = lan.public_backup.month3;
-                    break;
-                case "6":
-                    unit = lan.public_backup.month6;
-                    break;
-                case "12":
-                    unit = lan.public_backup.year1;
-                    break;
-                case "24":
-                    unit = lan.public_backup.year2;
-                    break;
-                case "36":
-                    unit = lan.public_backup.year3;
-                    break;
-                case "999":
-                    unit = lan.public_backup.permanent;
-                    break;
-            }
-            return unit;
-        },
-        get_product_discount_by: function(product_id, callback) {
-          if (product_id) {
-            bt.send('get_plugin_price', 'auth/get_plugin_price', { product_id: product_id }, function(rdata) {
-              if (callback) callback(rdata)
-            })
-          } else {
-            bt.send('get_product_discount_by', 'auth/get_product_discount_by', {}, function(rdata) {
-              if (callback) callback(rdata)
-            })
-          }
-        },
-        get_plugin_coupon: function(pid, callback) {
-          bt.send('check_pay_status', 'auth/check_pay_status', { id: pid }, function(rdata) {
-            if (callback) callback(rdata);
-          })
-        },
-        get_re_order_status: function(callback) {
-          bt.send('get_re_order_status', 'auth/get_re_order_status', {}, function(rdata) {
-            if (callback) callback(rdata);
-          })
-        },
-        get_voucher: function(pid, callback) {
-            if (pid) {
-                bt.send('get_voucher_plugin', 'auth/get_voucher_plugin', { pid: pid }, function(rdata) {
-                    if (callback) callback(rdata);
-                })
-            } else {
-                bt.send('get_voucher', 'auth/get_voucher', {}, function(rdata) {
-                    if (callback) callback(rdata);
-                })
-            }
-        },
-         get_check_out_info: function(order_no, callback) {
-            bt.send('get_stripe_session_id', 'auth/get_stripe_session_id', {order_no:order_no}, function(rdata) {
-                if (callback) callback(rdata);
-            })
-        },
-        create_order_voucher: function(pid, code, coupon_id, cycle, cycle_unit, charge_type,callback) {
-            var loading = bt.load();
-            if (pid) {
-                bt.send('create_order_voucher_plugin', 'auth/create_order_voucher_plugin', { pid: pid, coupon_id:coupon_id, cycle:cycle, cycle_unit:cycle_unit, charge_type:charge_type}, function(rdata) {
-                    loading.close();
-                    if (callback) callback(rdata);
-                    bt.msg(rdata);
-                })
-            } else {
-                bt.send('create_order_voucher', 'auth/create_order_voucher', { code: code }, function(rdata) {
-                    loading.close();
-                    if (callback) {
-                        callback(rdata);
-                    } else {
-                        bt.soft.pro.update();
-                    }
-                })
-            }
-
-
-    },
+			conver_unit: function(name) {
+					var unit = '';
+					switch (name) {
+							case "year":
+									unit = lan.public_backup.year;
+									break;
+							case "month":
+									unit = lan.public_backup.month;
+									break;
+							case "day":
+									unit = lan.public_backup.day;
+									break;
+							case "1month":
+									unit = lan.public_backup.month;
+									break;
+							case "3month":
+									unit = lan.public_backup.month3;
+									break;
+							case "6month":
+									unit = lan.public_backup.month6;
+									break;
+							case "1year":
+									unit = lan.public_backup.year1;
+									break;
+							case "2year":
+									unit = lan.public_backup.year2;
+									break;
+							case "3year":
+									unit = lan.public_backup.year3;
+									break;
+							case "1":
+									unit = lan.public_backup.month1;
+									break;
+							case "3":
+									unit = lan.public_backup.month3;
+									break;
+							case "6":
+									unit = lan.public_backup.month6;
+									break;
+							case "12":
+									unit = lan.public_backup.year1;
+									break;
+							case "24":
+									unit = lan.public_backup.year2;
+									break;
+							case "36":
+									unit = lan.public_backup.year3;
+									break;
+							case "999":
+									unit = lan.public_backup.permanent;
+									break;
+					}
+					return unit;
+			},
+			get_product_discount_by: function(product_id, callback) {
+				if (product_id) {
+					bt.send('get_plugin_price', 'auth/get_plugin_price', { product_id: product_id }, function(rdata) {
+						if (callback) callback(rdata)
+					})
+				} else {
+					bt.send('get_product_discount_by', 'auth/get_product_discount_by', {}, function(rdata) {
+						if (callback) callback(rdata)
+					})
+				}
+			},
+			get_plugin_coupon: function(pid, callback) {
+				bt.send('check_pay_status', 'auth/check_pay_status', { id: pid }, function(rdata) {
+					if (callback) callback(rdata);
+				})
+			},
+			get_re_order_status: function(callback) {
+				bt.send('get_re_order_status', 'auth/get_re_order_status', {}, function(rdata) {
+					if (callback) callback(rdata);
+				})
+			},
+			get_voucher: function(pid, callback) {
+					if (pid) {
+							bt.send('get_voucher_plugin', 'auth/get_voucher_plugin', { pid: pid }, function(rdata) {
+									if (callback) callback(rdata);
+							})
+					} else {
+							bt.send('get_voucher', 'auth/get_voucher', {}, function(rdata) {
+									if (callback) callback(rdata);
+							})
+					}
+			},
+				get_check_out_info: function(data, callback) {
+					bt.send('get_stripe_session_id', 'auth/get_stripe_session_id', data, function(rdata) {
+							if (callback) callback(rdata);
+					})
+			},
+			create_order_voucher: function(pid, code, coupon_id, cycle, cycle_unit, charge_type,callback) {
+					var loading = bt.load();
+					if (pid) {
+							bt.send('create_order_voucher_plugin', 'auth/create_order_voucher_plugin', { pid: pid, coupon_id:coupon_id, cycle:cycle, cycle_unit:cycle_unit, charge_type:charge_type}, function(rdata) {
+									loading.close();
+									if (callback) callback(rdata);
+									bt.msg(rdata);
+							})
+					} else {
+							bt.send('create_order_voucher', 'auth/create_order_voucher', { code: code }, function(rdata) {
+									loading.close();
+									if (callback) {
+											callback(rdata);
+									} else {
+											bt.soft.pro.update();
+									}
+							})
+					}
+    	},
       create_order: function(data, callback) {
         if (data.pid) {
-          var loadT = bt.load("Getting product information!")
+          // var loadT = bt.load("Getting product information!");
           bt.soft.get_panel_ssl_status(function (res) {
-            loadT.close()
+            // loadT.close()
             if (res.status) {
-              var _cycle_unit = $('#libPay-content .li-con .active  span').attr("data-unit"),
-              _pay_channel = $('#libPay-mode .pay-cycle-btn span').text().indexOf('Stripe') > -1?'2':'10'
-              requestNmae = data.serial_no?'renew_product_auth':'get_buy_code'
-              data.cycle_unit = _cycle_unit;
+              // var _cycle_unit = $('#libPay-content .li-con .active  span').attr("data-unit"),
+              // _pay_channel = $('#libPay-mode .pay-cycle-btn span').text().indexOf('Stripe') > -1?'2':'10'
+              // requestNmae = data.serial_no ? 'renew_product_auth' : 'get_buy_code';
+							var requestNmae = 'get_buy_code';
               if(!data.serial_no) {
                 data.charge_type = 1
               }else{
-                data.pay_channel = _pay_channel
+                data.pay_channel = 2
               }
-              bt.send(requestNmae, 'auth/'+requestNmae, data, function (rdata) {
-                loadT.close()
+              bt.send(requestNmae, 'auth/' + requestNmae, data, function (rdata) {
+                // loadT.close()
                 if (callback) callback(rdata);
               })
             } else {
               $('#libPay-content').empty()
               $('.libPay-mask').hide();
-              $('#libPay-pay').empty().append('<div style="font-size: 18px;position: relative;top: 25px;text-align: center;">Please apply for SSL before purchasing!</div>\
-              <div class="lib-price-box text-center"><button type="button" id="turn_on_ssl" style="margin-top:50px" class="btn btn-success ">Turn on SSL</button></div>');
+              $('#libPay-pay').empty().append('\
+							<div style="font-size: 16px; position: relative; top: 25px;">\
+								<div style="font-weight: bold;">Purchase on the panel:</div>\
+								<ul class="help-info-text" style="margin-top: 10px; font-size: 14px;">\
+									<li>You need to open the panel SSL</li>\
+								</ul>\
+								<div style="margin-top: 20px; font-weight: bold;">Purchase on the official website: </div>\
+								<ul class="help-info-text" style="margin-top: 10px; font-size: 14px;">\
+									<li>No need to open panel SSL</li>\
+									<li>You can purchase multiple licenses at the same time and get higher discounts</li>\
+								</ul>\
+							</div>\
+              <div class="lib-price-box text-center">\
+								<button type="button" id="turn_on_ssl" style="margin-top:50px" class="btn btn-success ">Turn on SSL</button>\
+							</div>');
               $('#turn_on_ssl').on('click', function (e) {
                 setPanelSSL()
               })
@@ -3864,14 +4137,16 @@ bt.soft = {
   },
   // 产品支付视图(配置参数)
   product_pay_view: function (config) {
-    if (!bt.get_cookie('bt_user_info')) {
+		if (!bt.get_cookie('bt_user_info')) {
       bt.pub.bind_btname(function () {
         window.location.reload();
       });
       return false;
     }
-    if (config.renew === -1) config.renew = false
+
+		if (config.renew === -1) config.renew = false
     if (typeof config == "string") config = JSON.parse(config);
+
     config = $.extend({
       plugin: null,
       renew: null,
@@ -3880,115 +4155,721 @@ bt.soft = {
       pro: parseInt(bt.get_cookie('pro_end')) || -1,
       ltd: parseInt(bt.get_cookie('ltd_end')) || -1
     }, config);
-      var totalNum = config.totalNum ? config.totalNum : '';
-      if (totalNum) {
-          bt.set_cookie('pay_source', parseInt(totalNum));
-      }
-    var title = '',that = this,endTime = null;
-    if (!config.is_alone) {
-      // 条件：当前为插件
-      if (config.plugin) {
-        title = (!config.renew ? 'Buy ' : '续费') + config.name;
-        ndTime = !config.renew ? config.renew : null
-      } else if (config.pro == -1 && config.ltd == -1) { // 条件：专业版和企业版都没有购买过
-        title = 'Upgrade to Pro, all plugins are free to use';
-      } else if (config.ltd > 0) { // 条件：企业版续费
-        title = 'Renew ' + (config.name == '' ? '宝塔专业版' : config.name);
-        endTime = config.ltd;
-      } else if (config.pro > 0 || config.pro == -2) { // 条件：专业版续费
-        title = 'Renew ' + (config.name == '' ? '宝塔专业版' : config.name);
-        endTime = config.pro;
-      } else if (config.ltd == -2) {
-        title = 'Renew ' + (config.name == '' ? '宝塔专业版' : config.name);
-        endTime = config.ltd;
-      }
-    } else {
-      title = (config.ltd > 0 ? '续费' : '购买') + '宝塔企业版';
-    }
+
+		var totalNum = config.totalNum ? config.totalNum : '';
+		if (totalNum) {
+			bt.set_cookie('pay_source', parseInt(totalNum));
+		}
+
+		var that = this;
+
     bt.open({
       type: 1,
-      title: title,
-      area: ['650px', '760px'],
+			title: false,
+			skin: 'libPay-view',
+      area: ['1024px', '600px'],
       shadeClose: false,
       content: '\
-                <div class="libPay plr15" id="pay_product_view" ' + (config.totalNum ? 'data-index="'+config.totalNum+'"' : '') + '>\
-                    <div class="libPay-item" style="margin-bottom:20px">\
-                        <span class="bindUser">Account: <span></span></span>\
-                        <span class="endTime">Expire date: <span></span></span>\
-                    </div>\
-                    <div class="libPay-item" id="libPay-type">\
-                        <div class="li-tit c3">Type</div>\
-                        <div class="li-con c5"></div>\
-                    </div>\
-                    <div class="libPay-item" id="libPay-mode">\
-                        <div class="li-tit c4">Payment method</div>\
-                        <div class="li-con c5"></div>\
-                    </div>\
-                    <div class="libPay-item" id="libPay-content">\
-                        <div class="li-tit c4">Choose your plan</div>\
-                        <div class="li-con c5"></div>\
-                    </div>\
-                    <div class="libPay-item" id="libPay-pay"></div>\
-                    <div class="libPay-mask"></div>\
-                </div>\
-            ',
+			<div class="libPay-content-box pro">\
+				<div class="libPay-product-introduce">\
+					<div class="pro-left-introduce pro">\
+						<div class="pro-left-title">\
+							<div></div>\
+							<span></span>\
+						</div>\
+						<div class="pro-left-list">\
+							<div class="pro-left-list-title"></div>\
+							<div class="pro-left-list-content"></div>\
+						</div>\
+						<div class="pro-price-herf">\
+							<a class="privilege_contrast" href="https://aapanel.com/new/pricing.html" target="_blank" rel="noreferer noopener">Feature contrast</a>\
+						</div>\
+					</div>\
+				</div>\
+				<div class="libPay-product-content">\
+					<div class="libPay-menu"></div>\
+					<div id="pay_product_view">\
+						<div class="libPay-layer-item aShow">\
+							<div class="libPay-line-item proTname" style="margin-bottom: 20px">Choose your plan</div>\
+							<div class="libPay-line-item proP" id="libPay-theme-price">\
+								<div class="switch-cycle-left hide"><span class="glyphicon glyphicon-chevron-left"></span></div>\
+								<ul class="pay-pro-cycle"></ul>\
+								<div class="switch-cycle-right hide"><span class="glyphicon glyphicon-chevron-right"></span>\
+							</div>\
+						</div>\
+						<div class="libPay-line-item libPay-mode">\
+							<div class="libPay-qcode-left">\
+								<div class="pay-radio-type">\
+									<div class="pay-type-btn active" data-condition="stripe">\
+										<label class="pay-type-label"><span class="pay-radio-tit">Stripe</span></label>\
+									</div>\
+									<div class="pay-type-btn" data-condition="paypal">\
+										<label class="pay-type-label"><span class="pay-radio-tit">Paypal</span></label>\
+									</div>\
+									<div class="pay-type-btn" data-condition="voucher">\
+										<label class="pay-type-label"><span class="pay-radio-tit">Voucher</span></label>\
+									</div>\
+									<div class="pay-type-btn" data-condition="authorization">\
+										<label class="pay-type-label"><span class="pay-radio-tit">Authorization</span></label>\
+									</div>\
+									<div class="pay-type-other"></div>\
+								</div>\
+							</div>\
+							<div class="libPay-qcode-right">\
+								<div class="libPay-qcode-right-head"></div>\
+								<div class="libPay-qcode-item">\
+									<div class="cloading">Loading, please wait!</div>\
+									<div class="pay-box">\
+										<div class="userinfo">\
+											<div class="info_label">Account: </div>\
+											<div class="info_value">--</div>\
+											<a class="btlink" href="javascript:;" style="text-decoration: underline">Change</a>\
+										</div>\
+										<div class="pay-price">\
+											<span class="price-label">Total: </span>\
+											<span class="org_price">$0</span>\
+											<span>, After discount </span>\
+											<span class="libPayTotal"><span style="font-size: 18px; margin-left: 4px; margin-right: 2px;">$</span>0</span>\
+											<span class="libPayCycle">/1 year</span>\
+										</div>\
+										<div class="pay-subscription hide">\
+											<input type="checkbox" name="subscription" checked="checked" />\
+											<span>Pay for subscription</span>\
+											<span class="org-price">$0/year</span>\
+											<span class="first-price">\
+												<span class="symbol">$</span>\
+												<span class="num">0</span>\
+											</span>\
+											<span class="cycle-unit">/first year</span>\
+											<a href="javascript:;" class="bt-ico-ask">?</a>\
+										</div>\
+										<button class="btn btn-success btn-pay" id="checkout-button">Pay Now</button>\
+									</div>\
+								</div>\
+								<div class="libPay-qcode-item hide">\
+									<div class="pay-box">\
+										<div class="userinfo">\
+											<div class="info_label">Account: </div>\
+											<div class="info_value">--</div>\
+											<a class="btlink" href="javascript:;" style="text-decoration: underline">Change</a>\
+										</div>\
+										<div class="pay-price">\
+											<span class="price-label">Total: </span>\
+											<span class="org_price">$0</span>\
+											<span>, After discount </span>\
+											<span class="libPayTotal"><span style="font-size: 18px; margin-left: 4px; margin-right: 2px;">$</span>0</span>\
+											<span class="libPayCycle">/1 year</span>\
+										</div>\
+										<div id="paypal-button-container" style="width: 240px; height: 35px; margin: 20px auto 0;"></div>\
+									</div>\
+								</div>\
+								<div class="libPay-qcode-item hide">\
+									<div class="li-tit c4">Vouchers</div>\
+									<ul class="pay-btn-group voucher-group"></ul>\
+									<div class="text-center">\
+										<button class="btn btn-success btn-sm f16" id="use-voucher" style="width: 200px; height: 40px;">Pay</button>\
+									</div>\
+								</div>\
+								<div class="libPay-qcode-item hide">\
+									<div class="li-tit c4">Authorization information</div>\
+									<ul class="pay-btn-group auth-group"></ul>\
+									<div class="text-center">\
+										<button class="btn btn-success btn-sm f16" id="use-auth" style="width: 200px; height: 40px;">Authorization</button>\
+									</div>\
+								</div>\
+							</div>\
+						</div>\
+					</div>\
+				</div>\
+			</div>',
+			end: function () {
+				bt.clear_cookie('pay_source');
+			},
       success: function ($layer, index) {
         $.getScript('https://js.stripe.com/v3/');
-        var bt_user_info = bt.get_cookie('bt_user_info');
-        if (!bt_user_info) {
-          bt.pub.get_user_info(function (res) {
-            $('.bindUser span').html(res.data.username + '<a href="javascript:;" class="btlink ml5">Change</a>');
-          });
-        } else {
-          $('.bindUser span').html(JSON.parse(bt_user_info).data.username + '<a href="javascript:;" class="btlink ml5">Change</a>');
-        }
-        if (endTime != null) {
-          $('.endTime span').html(endTime > parseInt(new Date().getTime() / 1000) ? bt.format_data(endTime) : '<i style="color:red;font-style:inherit">Expired</i>');
-        } else {
-          $('.endTime').hide();
-        }
-        $('.bindUser').on('click', 'a', function () {
-          bt.pub.bind_btname(function () {
-            bt.soft.product_pay_view(config);
-          });
-        });
-        var arry = [];
-        //config.name = '堡塔企业级防篡改';
-        if (config.plugin) arry.push({
-          title: config.name,
-          name: config.name,
-          ps: 'Plug-in only',
-          pid: config.pid,
-          renew: config.renew || false,
-          active: ((config.pro < 0 && config.ltd < 0) || (config.type == 12 && config.ltd < 0) ? true : false)
-        });
-        if ((((config.pro > 0 || config.pro == -2 || config.ltd < 0) && ((config.ltd > 0 && config.ltd != config.pro) || config.ltd < 0) && config.type != 12) || config.limit == 'pro' || (config.ltd < 0 && config.pro == -1)) && config.type != 12 && ((config.ltd < 0 && config.pro > 0) || (config.ltd < 0 && config.pro < 0))) {
-          arry.push({
-            title: '<span class="pro-font-icon"></span>',
-            name: '',
-            pid: '100000058',
-            ps: 'Recommended',
-            renew: config.renew || false,
-            active: (((config.type == 8 && !config.plugin) || config.limit == 'pro' || (config.pro > 0 || config.pro == -2)) && config.ltd < 0 && (config.ltd == -2 ? (config.pro == -2 ? false : true) : true))
-          });
-        }
 
-        // if((((config.ltd > 0 || config.ltd == -2 || config.pro == -2) || (config.ltd == -1 && config.pro == -1) || config.limit == 'ltd') && (config.pro < 0 || (config.pro >= 0 && config.ltd >0))) || (config.is_alone && config.pid == 100000032)){
-        // 	arry.push({title:'<span class="ltd-font-icon"></span>',name:'宝塔面板企业版',ps:'推荐企业购买',pid:100000032,recommend:true,active:((config.type == 12 && !config.plugin && config.ltd > 0) || config.limit == 'ltd' || (config.renew == config.ltd && config.ltd > 0)? true:false)});
-        // }
-        // if(config.type == 12 && config.pro >= 0 && config.ltd < 0) $('.pro-tips').html('温馨提示：专业版升级企业版需要手动结算当前专业版授权，<a href="https://www.bt.cn/bbs/thread-50342-1-1.html" target="_blank" class="btlink">《专业版和企业版切换教程》</a>').css('color','red');
-        $('#libPay-type .li-con').append(that.product_pay_swicth('type', arry));
-        if (config.source) bt.set_cookie('pay_source', config.source);
-        that.each(arry, function (index, item) {
-          if (item.active) {
-            that.product_pay_page_refresh($.extend({condition: 1}, item));
-          }
-        });
+				var layerThat = this;
+
+				layerThat.renderUserInfo();
+				layerThat.renderProductMenu();
+
+				var init = () => {
+					var removeLoad =  layerThat.addLoading('.libPay-layer-item');
+					layerThat.renderFeature();
+					layerThat.renderAuthList(function (rdata) {
+						if (rdata.length > 0) {
+							cutTab('authorization');
+							layerThat.renderProductPrice(function () {
+								removeLoad()
+							});
+						} else {
+							layerThat.renderVoucher(function (rdata) {
+								if (rdata.length > 0) {
+									cutTab('voucher');
+								}
+								layerThat.renderProductPrice(function () {
+									removeLoad()
+								});
+							});
+						}
+					});
+				}
+
+				init();
+
+				$('.switch-cycle-right').click(function () {
+					var num = $(this).prev().children().length;
+					var width = 196;
+					var remainder =  num % 4; // 获取余数
+					$(this).prev().css('transform','translateX(-'+(remainder * width ) + 'px)')
+					$('.switch-cycle-left').removeClass('hide')
+					$('#libPay-theme-price').css('padding-left','30px')
+					$(this).addClass('hide')
+				});
+
+				$('.switch-cycle-left').click(function (ev) {
+					if(bt.del_seven_coupon){
+						var $children = $('.pay-pro-cycle').children()
+						if($($children[0]).data('data').nums.length == 1){
+							$($children[0]).remove()
+							bt.del_seven_coupon = false
+						}
+					}
+					$('#libPay-theme-price').removeAttr('style')
+					$('.switch-cycle-right').removeClass('hide')
+					$(this).next().removeAttr('style')
+					$(this).addClass('hide')
+				});
+
+				$('.pay-btn-group').on('click', 'li', function () {
+					$(this).addClass('active').siblings('.active').removeClass('active');
+				});
+				
+				// 切换菜单
+				$('.libPay-menu').on('click', '.libPay-menu-type', function () {
+					$(this).addClass('active').siblings('.active').removeClass('active');
+					init();
+				});
+
+				// 产品周期切换
+				$('#libPay-theme-price .pay-pro-cycle').on('click', 'li', function () {
+					$(this).addClass('active').siblings('.active').removeClass('active');
+					var condition = $('.libPay-qcode-left .pay-type-btn.active').data('condition');
+					if (condition === 'stripe') {
+						layerThat.renderTotalPrice();
+					} else if (condition === 'paypal') {
+						layerThat.renderPaypal();
+					}
+				});
+
+				// 点击支付
+				$('#checkout-button').click(function () {
+					var config = $(this).data('data');
+					var loadT = bt.load('Getting the session ID,Please waiting!');
+					var stripe = Stripe(config.stripe_publishable_key);
+					var subscribe = config.subscription_price > 0 && $('.pay-subscription input').prop('checked') ? 1 : 0;
+					that.pro.get_check_out_info({
+						order_no: config.order_no,
+						subscribe: subscribe
+					}, function (res) {
+						loadT.close();
+						if (res.id) {
+							stripe.redirectToCheckout({ sessionId: res.id });
+						} else {
+							layer.msg('Payment order failed, please contact administrator!', { icon: 2 });
+						}
+					});
+				});
+
+				// 切换tab
+				function cutTab(condition) {
+					var $el = $('.libPay-qcode-left .pay-type-btn[data-condition="' + condition + '"]');
+					var index = $el.index();
+					$el.addClass('active').siblings('.active').removeClass('active');
+					$('.libPay-qcode-right .libPay-qcode-item').eq(index).removeClass('hide').siblings('.libPay-qcode-item').addClass('hide');
+				}
+
+				// 支付方式切换
+				$('.libPay-qcode-left .pay-type-btn').click(function () {
+					var condition = $(this).data('condition');
+					cutTab(condition);
+
+					var condition = $(this).data('condition');
+					switch (condition) {
+						case 'stripe':
+							layerThat.renderTotalPrice();
+							break;
+						case 'paypal':
+							layerThat.renderPaypal();
+							break;
+						case 'voucher':
+							layerThat.renderVoucher();
+							break;
+						case 'authorization':
+							layerThat.renderAuthList();
+							break;
+					}
+				});
+
+				// 切换用户
+				$('.libPay-qcode-item .userinfo a').click(function () {
+					bt.pub.bind_btname(function () {
+						// bt.soft.product_pay_view(config);
+						window.location.reload();
+					});
+				});
+
+				// 使用抵扣卷
+				$('#use-voucher').click(function () {
+					if ($(this).hasClass('disabled')) return false;
+
+					var data = $('.voucher-group .active').data();
+					if (!data.serial_no) {
+						layer.msg('No vouchers');
+						return false;
+					}
+					bt.soft.pro.create_order_voucher(data.pid, data.code, data.id, data.cycle, data.cycle_unit, data.charge_type, function (rdata) {
+						layer.closeAll();
+						bt.set_cookie('force', 1);
+						if (soft) soft.flush_cache();
+						bt.msg(rdata);
+						if (rdata.status) {
+							getPaymentStatus();
+						}
+					});
+				});
+
+				// 授权
+				$('#use-auth').click(function () {
+					if ($(this).hasClass('disabled')) return false;
+
+					var _serial_no = $('.auth-group .active').attr('data-id');
+					if (typeof _serial_no == 'undefined') return false;
+					var loadU = bt.load('Under licensing!');
+					bt.send('auth_activate', 'auth/auth_activate', { serial_no: _serial_no }, function (res) {
+						loadU.close();
+						if (res) {
+							layer.msg(res.msg, { icon: res.status ? 1 : 2 });
+							if (res.status) {
+								window.location.reload();
+							}
+						}
+					});
+				});
+
+				var layerIndex = -1;
+
+				$('.pay-subscription .bt-ico-ask').hover(function () {
+					layerIndex = layer.tips('<div>when subscription creation, your authorization will auto generated<br />when subscription renewal, your authorization will auto renewed</div>', $(this), {
+						tips: [1, '#999'],
+						time: 0,
+						area: '410px'
+					});
+				}, function () {
+					layer.close(layerIndex);
+				});
       },
-			end:function(){
-				clearInterval(bt.soft.pub.wxpayTimeId);
-				bt.clear_cookie('pay_source');
-			}
+			addLoading: function (elem) {
+				var $el = $(elem);
+				$el.children().addClass('hide');
+				if ($el.children('.cloading').length === 0) {
+					$el.append('<div class="cloading">Loading, please wait!</div>');
+				}
+				return function removeLoad () {
+					$el.children('.cloading').remove();
+					$el.children().removeClass('hide');
+				}
+			},
+			getConfig: function () {
+				var data = $('.libPay-menu .libPay-menu-type.active').data();
+				return data;
+			},
+			// 渲染菜单
+			renderProductMenu: function () {
+				var menus = []
+				if (config.plugin) {
+					menus.push({
+						title: config.name,
+						name: config.name,
+						ps: 'Plug-in only',
+						desc: config.ps,
+						pid: config.pid,
+						renew: config.renew || false,
+						is_pro: false,
+						active: (config.pro < 0 && config.ltd < 0) || (config.type == 12 && config.ltd < 0) ? true : false,
+					});
+				}
+				if (
+					(((config.pro > 0 || config.pro == -2 || config.ltd < 0) && ((config.ltd > 0 && config.ltd != config.pro) || config.ltd < 0) && config.type != 12) ||
+						config.limit == 'pro' ||
+						(config.ltd < 0 && config.pro == -1)) &&
+					config.type != 12 &&
+					((config.ltd < 0 && config.pro > 0) || (config.ltd < 0 && config.pro < 0))
+				) {
+					menus.push({
+						title: 'PRO',
+						name: '',
+						pid: '100000058',
+						ps: 'Recommended',
+						renew: config.renew || false,
+						is_pro: true,
+						active:
+							((config.type == 8 && !config.plugin) || config.limit == 'pro' || config.pro > 0 || config.pro == -2) && config.ltd < 0 && (config.ltd == -2 ? (config.pro == -2 ? false : true) : true),
+					});
+				}
+
+				var $el = null;
+				$.each(menus, function (index, item) {
+					$el = $('<div class="libPay-menu-type ' + (item.is_pro ? 'lib_pro' : '') + ' ' + (item.active ? 'active' : '') + '">\
+						<p>\
+							' + (item.is_pro ? '<span class="glyphicon glyphicon-vip" style="margin-right: 8px"></span>' : '') + '<span>' + item.title + '</span>\
+						</p>\
+						<p>' + item.ps + '</p>\
+					</div>').data(item);
+					$('.libPay-menu').append($el);
+				});
+			},
+			renderFeature: function () {
+				var config = this.getConfig();
+				
+				if (config.is_pro) {
+					$('.pro-left-introduce .pro-left-title>div').html('<span class="glyphicon glyphicon-vip" style="margin-right: 7px"></span><span>' + config.title + '</span>');
+					$('.pro-left-introduce .pro-left-title>span').removeClass('hide').html(config.ps);
+					$('.pro-left-list-title').text('Pro Feature: ');
+					$('.pro-price-herf').removeClass('hide');
+					bt.send('get_plugin_remarks', 'auth/get_plugin_remarks', { product_id: '100000058' }, function (rdata) {
+						var html = '';
+						$.each(rdata.res, function (index, item) {
+							html += '<div class="pro-introduce"><span class="glyphicon glyphicon-ok"></span><span>' + item + '</span></div>';
+						});
+						$('.pro-left-list-content').removeAttr('style').html(html);
+					});
+				} else {
+					$('.pro-left-introduce .pro-left-title>div').html('<span>' + config.title + '</span>');
+					$('.pro-left-introduce .pro-left-title>span').addClass('hide').html(config.ps);
+					$('.pro-left-list-title').text('Plug-in description: ');
+					$('.pro-left-list-content').css({
+						'width': '186px',
+						'line-height': '23px'
+					}).html(config.desc);
+					$('.pro-price-herf').addClass('hide');
+				}
+			},
+			// 渲染产品价格
+			renderProductPrice: function (callback) {
+				var layerThat = this;
+
+				var config = layerThat.getConfig();
+
+				that.get_product_discount_cache(config, function (rdata) {
+
+					if (callback) callback(rdata);
+
+					// 大于4个显示左右切换按钮
+					var num = rdata.length;
+					if (num > 4) {
+						$('.switch-cycle-right').removeClass('hide');
+					} else {
+						$('.switch-cycle-right,.switch-cycle-left').addClass('hide');
+					}
+
+					
+					// 遍历渲染产品价格
+					var html = '';
+					$('#libPay-theme-price .pay-pro-cycle').empty()
+					that.each(rdata, function (key, item) {
+						var keys = item.cycle;
+						var priceByDay = (item.price / ((item.cycle / (item.cycle_unit === 'year' ? 1 : 12)) * 365)).toFixed(2);
+						var cycleUnit =  item.cycle  + ' ' + item.cycle_unit + (item.cycle > 1 ? 's' : '')
+						
+						html = '\
+						<li class="pay-cycle-btns '+ (key === 0 ? 'active' : '') + '" data-type="' + keys + '">\
+							<div class="pay-head-price">\
+								<div class="new-price">\
+									<div class="libPrice">$<i>' + (item.price).toFixed(2) + '</i></div>\
+									<div class="cycle">/' + cycleUnit + '</div>\
+								</div>\
+								<p>OP: $' + item.market_price + '</p>\
+							</div>\
+							<div class="pay-foo-price">As low as $' + priceByDay + '/day</div>\
+							' + (item.discount_rate != 1 ? '<em>' + (100 - item.discount_rate * 100) + '% off</em>' : '') + '\
+						</li>';
+						$('#libPay-theme-price .pay-pro-cycle').append($(html).data($.extend({
+							pid: config.pid,
+							dom_index: key
+						}, item)));
+					});
+
+					layerThat.renderTotalPrice();
+				});
+			},
+			// 渲染用户信息
+			renderUserInfo: function () {
+				var bt_user_info = bt.get_cookie('bt_user_info');
+				if (!bt_user_info) {
+					bt.pub.get_user_info(function (res) {
+						$('.libPay-qcode-right .userinfo .info_value').html(res.data.username);
+					});
+				} else {
+					$('.libPay-qcode-right .userinfo .info_value').html(JSON.parse(bt_user_info).data.username);
+				}
+			},
+			renderEndTime: function () {
+				var endTime = null;
+				if (!config.is_alone) {
+					// 条件：当前为插件
+					if (config.plugin) {
+						title = (!config.renew ? 'Buy ' : '续费') + config.name;
+						ndTime = !config.renew ? config.renew : null;
+					} else if (config.pro == -1 && config.ltd == -1) {
+						// 条件：专业版和企业版都没有购买过
+						title = 'Upgrade to Pro, all plugins are free to use';
+					} else if (config.ltd > 0) {
+						// 条件：企业版续费
+						title = 'Renew ' + (config.name == '' ? '宝塔专业版' : config.name);
+						endTime = config.ltd;
+					} else if (config.pro > 0 || config.pro == -2) {
+						// 条件：专业版续费
+						title = 'Renew ' + (config.name == '' ? '宝塔专业版' : config.name);
+						endTime = config.pro;
+					} else if (config.ltd == -2) {
+						title = 'Renew ' + (config.name == '' ? '宝塔专业版' : config.name);
+						endTime = config.ltd;
+					}
+				} else {
+					title = (config.ltd > 0 ? '续费' : '购买') + '宝塔企业版';
+				}
+				if (endTime != null) {
+					$('.endTime span').html(endTime > parseInt(new Date().getTime() / 1000) ? bt.format_data(endTime) : '<i style="color:red;font-style:inherit">Expired</i>');
+				} else {
+					$('.endTime').hide();
+				}
+			},
+			// 渲染总价格
+			renderTotalPrice: function () {
+				var condition = $('.libPay-qcode-left .pay-type-btn.active').data('condition');
+				if (condition !== 'stripe') {
+					return;
+				}
+
+				var layerThat = this;
+				var removeLoad = layerThat.addLoading('.libPay-qcode-item:not(.hide)');
+				var config = $('#libPay-theme-price .pay-pro-cycle .active').data();
+				var param = { pid: config.pid, cycle: config.cycle, cycle_unit: config.cycle_unit, charge_type: config.charge_type };
+				param.source = parseInt(bt.get_cookie('pay_source') || 0);
+				if (param.source === 0) {
+					if ($('.btpro-gray').length == 1) {
+						// 是否免费版
+						param.source = 27;
+					} else {
+						param.source = 28;
+					}
+				}
+				if (!param.pid) delete param.pid;
+				if (bt.get_cookie('serial_no') != null) param.serial_no = config.serial_no || bt.get_cookie('serial_no');
+				that.pro.create_order(param, function (rdata) {
+					removeLoad();
+					if (rdata.status === false) {
+						bt.set_cookie('force', 1);
+						if (soft) soft.flush_cache();
+						layer.msg(rdata.msg, { icon: 2 });
+						return;
+					}
+
+					var cycle = config.cycle + ' ' + config.cycle_unit + (config.cycle > 1 ? 's' : '');
+					// var unit = config.num + ' unit' + (config.num > 1 ? 's' : '');
+					$('.libPayTotal').html('<span style="font-size: 18px; margin-left: 4px; margin-right: 2px">$</span>' + config.price);
+					$('.pay-price .org_price').text('$' + config.market_price + '/' + cycle);
+					$('.pay-price .libPayCycle').html('/' + cycle);
+
+					if (config.subscription_price > 0) {
+						$('.pay-subscription').removeClass('hide');
+						if (config.first_subscription_price > 0) {
+							$('.pay-subscription .org-price').removeClass('hide');
+							$('.pay-subscription .org-price').text('$' + config.subscription_price + '/' + config.cycle_unit);
+							$('.pay-subscription .first-price .num').text(config.first_subscription_price);
+						} else {
+							$('.pay-subscription .org-price').addClass('hide');
+							$('.pay-subscription .first-price .num').text(config.subscription_price);
+						}
+						$('.pay-subscription .cycle-unit').text('/first ' + config.cycle_unit);
+					} else {
+						$('.pay-subscription').addClass('hide');
+					}
+
+					$('#checkout-button').data('data', rdata);
+				});
+			},
+			// 渲染paypal
+			renderPaypal: function () {
+				var layerThat = this;
+				
+				var removeLoad = layerThat.addLoading('.libPay-qcode-item:not(.hide)');
+				var config = $('#libPay-theme-price .pay-pro-cycle .active').data();
+				var param = { pid: config.pid, cycle: config.cycle, cycle_unit: config.cycle_unit, charge_type: config.charge_type };
+				param.source = parseInt(bt.get_cookie('pay_source') || 0);
+				if (param.source === 0) {
+					if ($('.btpro-gray').length == 1) {
+						// 是否免费版
+						param.source = 27;
+					} else {
+						param.source = 28;
+					}
+				}
+				if (!param.pid) delete param.pid;
+				if (bt.get_cookie('serial_no') != null) param.serial_no = config.serial_no || bt.get_cookie('serial_no');
+				that.pro.create_order(param, function (rdata) {
+					removeLoad();
+
+					if (rdata.status === false) {
+						bt.set_cookie('force', 1);
+						if (soft) soft.flush_cache();
+						layer.msg(rdata.msg, { icon: 2 });
+						return;
+					}
+
+					var cycle = config.cycle + ' ' + config.cycle_unit + (config.cycle > 1 ? 's' : '');
+					// var unit = config.num + ' unit' + (config.num > 1 ? 's' : '');
+					$('.libPayTotal').html('<span style="font-size: 18px; margin-left: 4px; margin-right: 2px">$</span>' + config.price);
+					$('.pay-price .org_price').text('$' + config.market_price + '/' + cycle);
+					$('.pay-price .libPayCycle').html('/' + cycle);
+
+					layerThat.renderPaypalBtn(rdata);
+				});
+			},
+			renderPaypalBtn: function (rdata) {
+				$('#paypal-button-container').empty();
+
+				jQuery.ajax({ 
+					url: "/static/js/polyfill.min.js",
+					dataType: "script",
+					cache: true
+				}).done(function() {
+					var httpPromise = function (config) {
+						return new Promise((resolve, reject) => {
+							$.ajax({
+								type: 'POST',
+								url: config.url,
+								data: config.data,
+								success: function (res) {
+									resolve(res)
+								},
+								error: function (err) {
+									reject(err)
+								}
+							});
+						})
+					}
+					var check_response = function (response) {
+						return new Promise((resolve, reject) => {
+							if (response.status) {
+								return resolve(response.res);
+							}
+							bt.msg(response);
+							reject(response.res);
+						});
+					}
+					jQuery.ajax({ 
+						url: "https://www.paypal.com/sdk/js?client-id=" + rdata.paypal_client_id,
+						dataType: "script",
+						cache: true
+					}).done(function() {
+						var buttons = paypal.Buttons({
+							// 只渲染paypal支付按钮
+							fundingSource: paypal.FUNDING.PAYPAL,
+							// 绑定PayPal订单创建事件处理函数，请求paypal订单创建接口
+							// 注意： 该函数必须返回Promise对象, 若使用 JQuery.ajax() 函数
+							// 请使用 new Promise(fn(resolve(), reject())) 创建Promise对象并将其返回
+							// Promise必须返回从接口获取的id
+							createOrder: () => {
+								return httpPromise({ 
+									url: '/auth?action=get_paypal_session_id',
+									data: { oid: rdata.order_id } 
+								})
+								.then(check_response)
+								.then(res => res)
+							},
+							// 绑定支付确认事件，请求paypal订单支付确认接口并传递orderId
+							// 注意： 该函数必须返回Promise对象，若使用 JQuery.ajax() 函数 请参照 step3
+							// Promise最终请展示支付结果
+							onApprove: (data) => {
+								return httpPromise({
+										url: '/auth?action=check_paypal_status',
+										data: { paypal_order_id: data.orderID }
+									})
+									// res是支付成功跳转的url
+									.then(check_response)
+									.then(res => {
+										layer.msg('Payment successful', { icon: 1 });
+										setTimeout(() => {
+											location.reload();
+										}, 1500);
+									})
+							}
+						})
+						buttons.render('#paypal-button-container');
+					});
+				});
+			},
+			// 渲染抵扣卷
+			renderVoucher: function (callback) {
+				var layerThat = this;
+				var config = layerThat.getConfig();
+				var removeLoad = layerThat.addLoading('.libPay-qcode-item:not(.hide)');
+				bt.soft.pro.get_voucher(config.pid, function (rdata) {
+					removeLoad();
+
+					if (callback) callback(rdata);
+
+					$('.voucher-group').empty();
+					if (rdata == null && !Array.isArray(rdata)) rdata = [];
+					if (rdata.length == 0) {
+						$('.voucher-group').addClass('hide');
+						$('#use-voucher').addClass('disabled').text('No vouchers');
+						return;
+					}
+
+					var $li = null
+					that.each(rdata, function (index, item) {
+						var name = (item.cycle_unit == 'month' && item.cycle == 999 ? '永久' : item.cycle + that.pro.conver_unit(item.cycle_unit));
+						$li = $('<li class="pay-cycle-btn ' + (index === 0 ? 'active' : '') + '"><span>' + name + '</span></li>').data($.extend({ pid: config.pid }, item));
+						$('.voucher-group').append($li);
+					});
+
+					$('.voucher-group').removeClass('hide');
+					$('#use-voucher').removeClass('disabled').text('Pay');
+					
+				})
+			},
+			// 渲染授权列表
+			renderAuthList: function (callback) {
+				var layerThat = this;
+				var config = layerThat.getConfig();
+				var removeLoad = layerThat.addLoading('.libPay-qcode-item:not(.hide)');
+				bt.send('get_product_auth', 'auth/get_product_auth', { page: 1, pageSize: 15, pid: config.pid }, function (rdata) {
+					removeLoad();
+
+					if (callback) callback(rdata);
+
+					$('.auth-group').empty();
+					if (rdata == null && !Array.isArray(rdata)) rdata = [];
+					if (rdata.length == 0) {
+						$('.auth-group').addClass('hide');
+						$('#use-auth').addClass('disabled').text('No authorization');
+						return;
+					}
+
+					var html = '';
+					$.each(rdata, function (index, item) {
+						if (config.pid == item.product_id) {
+							html += '<li class="pay-cycle-btn  ' + (index == 0 ? 'active' : '') + '" data-id="' + item.serial_no + '" style="width:180px"><span>' + bt.format_data(item.end_time) + '</span></li>';
+						}
+					});
+					$('.auth-group').append(html);
+					$('.auth-group').removeClass('hide');
+					$('#use-auth').removeClass('disabled').text('Authorization');
+				})
+			},
 		});
 	},
     product_cache:{}, //产品周期缓存
@@ -4142,6 +5023,7 @@ bt.soft = {
                 }
                 var paream = {pid:config.pid,cycle:config.cycle};
                 paream.source = parseInt(bt.get_cookie('pay_source') || 0)
+								console.log(paream.source)
                 if (paream.source === 0) {
                     if ($('.btpro-gray').length == 1) {  // 是否免费版
                         paream.source = 27;
@@ -5088,7 +5970,9 @@ bt.soft = {
                 var SelectVersion = '';
                 for (var i = 0; i < rdata.versions.length; i++) {
                     var item = rdata.versions[i];
-                    SelectVersion += '<option>' + name + ' ' + item.m_version + '</option>';
+                    var v_type = parseInt(item.beta) === 1 ? ' Beta' : ' Stable';
+                    var version = parseInt(rdata.type) === 5 ? item.m_version : item.full_version;
+                    SelectVersion += '<option>' + name + ' ' + version + v_type + '</option>';
                 }
                 var loadOpen = bt.open({
                     type: 1,
@@ -5110,7 +5994,7 @@ bt.soft = {
                     _this.install_soft(rdata, version, 0, that);
                 });
             } else {
-                _this.install_soft(rdata, rdata.versions[0].m_version,0,that);
+                _this.install_soft(rdata, parseInt(rdata.type) === 5 ? rdata.versions[0].m_version : rdata.versions[0].full_version,0,that);
             }
         })
     },
@@ -5312,21 +6196,24 @@ bt.soft = {
             //         bt.msg(rdata);
             //     })
             // })
-            bt.soft.show_speed_window({title:'Updating to [' + title+'-'+version+'.'+min_version+'],Please wait...',status:true,soft:{type:parseInt(type)}},function(){
-				bt.send('install_plugin', 'plugin/install_plugin', { sName: name, version: version, upgrade: version }, function (rdata) {
-                    console.log(rdata);
-					if (rdata.size) {
-						_this.install_other(rdata)
-						return;
-					}
-					layer.close(bt.soft.loadT);
-					bt.pub.get_task_count(function(rdata){
-						if(rdata > 0 && item.type === 5) messagebox();
-					});
-					if(typeof soft != "undefined") soft.get_list();
-					bt.msg(rdata);
-				})
-			})
+             _this.get_soft_find(name, function (item) {
+                 var full_version = parseInt(item.type) === 5 ? version : (version+'.'+min_version);
+                 bt.soft.show_speed_window({title:'Updating to [' + title+'-'+version+'.'+min_version+'],Please wait...',status:true,soft:{type:parseInt(type)}},function(){
+                    bt.send('install_plugin', 'plugin/install_plugin', { sName: name, version: full_version, upgrade: full_version }, function (rdata) {
+                        console.log(rdata);
+                        if (rdata.size) {
+                            _this.install_other(rdata)
+                            return;
+                        }
+                        layer.close(bt.soft.loadT);
+                        bt.pub.get_task_count(function(rdata){
+                            if(rdata > 0 && parseInt(item.type) === 5) messagebox();
+                        });
+                        if(typeof soft != "undefined") soft.get_list();
+                        bt.msg(rdata);
+                    });
+                });
+             });
         }, msg);
     },
     un_install: function(name) {
@@ -5459,17 +6346,26 @@ bt.database = {
             if (callback) callback(rdata);
         })
     },
-    set_root: function() {
-        bt.database.get_root_pass(function(rdata) {
-            var bs = bt.render_form(bt.data.database.root);
-            $('.password' + bs).val(rdata);
-        })
+    set_root: function(type) {
+			if(type == 'mongo' || type == 'pgsql') {
+				var t = bt.data.database.getType();
+				bt_tools.send('database/' + t + '/get_root_pwd', function (rdata) {
+					if (type == 'pgsql') bt.data.database.mongo['list'][0]['title'] = lan.database.admin_password;
+					var bs = bt.render_form(bt.data.database.mongo);
+					$('.password' + bs).val(rdata.msg);
+				});				
+			} else {
+				bt.database.get_root_pass(function(rdata) {
+					var bs = bt.render_form(bt.data.database.root);
+					$('.password' + bs).val(rdata);
+				});
+			}
     },
     set_data_pass: function(callback) {
-        var bs = bt.render_form(bt.data.database.data_pass, function(rdata) {
-            if (callback) callback(rdata);
-        });
-        return bs;
+			var bs = bt.render_form(bt.data.database.data_pass, function(rdata) {
+				if (callback) callback(rdata);
+			});
+			return bs;
     },
     set_data_access: function(name) {
         var loading = bt.load();
@@ -5514,37 +6410,77 @@ bt.database = {
         })
     },
     add_database: function(cloudList, callback) {
+			var type = bt.data.database.getType();
+			if (type === 'mysql') {
         bt.data.database.data_add.list[2].items[0].value = bt.get_random(16);
-        bt.data.database.data_add.list[5].items[0].items = cloudList;
+        bt.data.database.data_add.list[4].items[0].items = cloudList;
         bt.render_form(bt.data.database.data_add, function(rdata) {
-            if (callback) callback(rdata);
+					if (callback) callback(rdata);
         });
+			} else {
+				var copyDataAdd = $.extend(true, {}, bt.data.database.data_add);
+				copyDataAdd.list[2].items[0].value = bt.get_random(16);
+				switch (type) {
+					case 'sqlserver':
+					case 'mongodb':
+					case 'pgsql':
+						delete copyDataAdd.list[0].items[1]
+						copyDataAdd.list.splice(3)
+						copyDataAdd.list.push(bt.data.database.data_add.list[4])
+						copyDataAdd.list.push(bt.data.database.data_add.list[5])
+						copyDataAdd.list[3].items[0].items = cloudList;
+						break;
+				}
+				// 没有本地或者远程数据库
+				if (cloudList.length == 0) {
+					copyDataAdd.list[copyDataAdd.list.length - 1].hide = true;
+				}
+				bt.render_form($.extend(true, {}, copyDataAdd), function (rdata) {
+					if (callback) callback(rdata);
+				});
+			}
     },
     del_database: function(data, callback) {
-        var loadT = bt.load(lan.get('del_all_task_the', [data.name]));
-        bt.send('DeleteDatabase', 'database/DeleteDatabase', data, function(rdata) {
-            loadT.close();
-            bt.msg(rdata);
-            if (callback) callback(rdata);
-        })
+			var loadT = bt.load(lan.get('del_all_task_the', [data.name]));
+			var type = bt.data.database.getType();
+			var params = { url: 'database?action=DeleteDatabase', data: data }
+			if (type != 'mysql') {
+				params.url = 'database/' + type + '/DeleteDatabase';
+				params.data = { data: JSON.stringify(data) };
+			}
+			bt_tools.send(params, function(rdata) {
+				loadT.close();
+				bt.msg(rdata);
+				if (callback) callback(rdata);
+			})
     },
     sync_database: function(sid, callback) {
-        var loadT = bt.load(lan.database.sync_the);
-        bt.send('SyncGetDatabases', 'database/SyncGetDatabases', {
-            sid: sid
-        }, function (rdata) {
-            loadT.close();
-            bt.msg(rdata);
-            if (callback) callback(rdata);
-        });
+			var loadT = bt.load(lan.database.sync_the);
+			var type = bt.data.database.getType();
+			var params = { url: 'database?action=SyncGetDatabases', data: { sid: sid } }
+			if (type != 'mysql') {
+				params.url = 'database/' + type + '/SyncGetDatabases';
+				params.data = { data: JSON.stringify({ sid: sid }) };
+			}
+			bt_tools.send(params, function (rdata) {
+				loadT.close();
+				bt.msg(rdata);
+				if (callback) callback(rdata);
+			});
     },
     sync_to_database: function(data, callback) {
-        var loadT = bt.load(lan.database.sync_the);
-        bt.send('SyncToDatabases', 'database/SyncToDatabases', data, function(rdata) {
-            loadT.close();
-            if (callback) callback(rdata);
-            bt.msg(rdata);
-        })
+			var loadT = bt.load(lan.database.sync_the);
+			var type = bt.data.database.getType();
+			var params = { url: 'database?action=SyncToDatabases', data: data }
+			if (type != 'mysql') {
+				params.url = 'database/' + type + '/SyncToDatabases';
+				params.data = { data: JSON.stringify(data) };
+			}
+			bt_tools.send(params, function(rdata) {
+				loadT.close();
+				if (callback) callback(rdata);
+				bt.msg(rdata);
+			})
     },
     open_phpmyadmin:function(name,username,password){
 
@@ -5581,34 +6517,47 @@ bt.database = {
 		},200);
 	},
     input_sql: function(fileName, dataName) {
-        bt.confirm({ msg: lan.database.input_confirm, title: lan.database.input_title }, function(index) {
-            var loading = bt.load(lan.database.input_the);
-            bt.send('InputSql', 'database/InputSql', { file: fileName, name: dataName }, function(rdata) {
-                loading.close();
-                bt.msg(rdata);
-            })
-        });
+			bt.confirm({ msg: lan.database.input_confirm, title: lan.database.input_title }, function(index) {
+				var loading = bt.load(lan.database.input_the);
+				var type = bt.data.database.getType();
+				var params = { url: 'database?action=InputSql', data: { file: fileName, name: dataName } }
+				if (type != 'mysql') {
+					params.url = 'database/' + type + '/InputSql';
+					params.data = { data: JSON.stringify({ file: fileName, name: dataName }) };
+				}
+				bt_tools.send(params, function(rdata) {
+					loading.close();
+					bt.msg(rdata);
+				})
+			});
     },
-    backup_data: function(id, dataname, callback) {
-        var loadT = bt.load(lan.database.backup_the);
-        bt.send('ToBackup', 'database/ToBackup', { id: id }, function(rdata) {
-            loadT.close();
-            bt.msg(rdata);
-            if (callback) callback(rdata);
-        });
-
+    backup_data: function(id, callback) {
+			var loadT = bt.load(lan.database.backup_the);
+			var type = bt.data.database.getType();
+			var params = { url: 'database?action=ToBackup', data: { id: id } }
+			if (type != 'mysql') {
+				params.url = 'database/' + type + '/ToBackup';
+				params.data = { data: JSON.stringify({ id: id }) };
+			}
+			bt_tools.send(params, function(rdata) {
+				loadT.close();
+				bt.msg(rdata);
+				if (callback) callback(rdata);
+			});
     },
-    del_backup: function(id, dataid, dataname) {
-        bt.confirm({ msg: lan.database.backup_del_confirm, title: lan.database.backup_del_title }, function(index) {
-            var loadT = bt.load();
-            bt.send('DelBackup', 'database/DelBackup', { id: id }, function(frdata) {
-                loadT.close();
-                if (frdata.status) {
-                    if (database) database.database_detail(dataid, dataname);
-                }
-                bt.msg(frdata);
-            });
-        });
+    del_backup: function(id, success, error) {
+			bt.confirm({ msg: lan.database.backup_del_confirm, title: lan.database.backup_del_title }, function(index) {
+				var loadT = bt.load();
+				bt.send('DelBackup', 'database/DelBackup', { id: id }, function(frdata) {
+					loadT.close();
+					bt.msg(frdata);
+					if (frdata.status) {
+						success && success(frdata);
+					} else {
+						error && error(frdata);
+					}
+				});
+			});
     }
 }
 
@@ -6086,6 +7035,66 @@ bt.site = {
             if (callback) callback(rdata);
         })
     },
+get_module_config: function (param, callback) {
+			var loadT = bt.load('Obtaining the alarm configuration, please wait...');
+			bt.send(
+				'get_module_config',
+				'push/get_module_config',
+				{
+					name: param.name,
+					type: param.type,
+				},
+				function (rdata) {
+					loadT.close();
+					if (callback) callback(rdata);
+				}
+			);
+		},
+
+		// 设置
+		set_push_config: function (param, callback) {
+			var loadT = bt.load('Please wait while setting alarm configuration...');
+			bt.send(
+				'set_push_config',
+				'push/set_push_config',
+				{
+					name: param.name,
+					id: param.id,
+					data: param.data,
+				},
+				function (rdata) {
+					loadT.close();
+					if (callback) callback(rdata);
+				}
+			);
+		},
+		// 获取消息推送配置
+		get_msg_configs: function (callback) {
+			var loadT = bt.load('Getting the message push configuration, please wait...');
+			bt.send('get_msg_configs', 'config/get_msg_configs', {}, function (rdata) {
+				loadT.close();
+				if (callback) callback(rdata);
+			});
+		},
+		// 下载证书
+		download_cert: function (param, callback) {
+			var loadT = bt.load('Please wait while downloading the certificate...');
+			bt.send(
+				'download_cert',
+				'site/download_cert',
+				{
+					siteName: param.siteName,
+					ssl_type: param.ssl_type || 'csr',
+					pem: param.pem,
+					key: param.key,
+					pwd: param.pwd || '', //密码，非必填
+				},
+				function (rdata) {
+					loadT.close();
+					if (callback) callback(rdata);
+				}
+			);
+		},
     get_ssl_info: function(partnerOrderId, siteName, callback) {
         var loadT = bt.load(lan.site.ssl_apply_3);
         bt.send('GetSSLInfo', 'ssl/GetSSLInfo', { partnerOrderId: partnerOrderId, siteName: siteName }, function(rdata) {
@@ -6433,6 +7442,9 @@ bt.form = {
 
 bt.data = {
     database: {
+				getType: function () {
+					return bt.get_cookie('db_page_model') || 'mysql';
+				},
         root: {
             title: lan.database.edit_pass_title,
             area: '530px',
@@ -6447,14 +7459,59 @@ bt.data = {
                 bt.form.btn.close(),
                 bt.form.btn.submit(lan.public_backup.submit, function(rdata, load) {
                     var loading = bt.load();
-                    bt.send('SetupPassword', 'database/SetupPassword', rdata, function(rRet) {
-                        loading.close();
-                        layer.msg(rRet.msg, { icon: rRet.status ? 1 : 2, shade: .3 })
-                        if (rRet.status) load.close();
-                    })
+										var type = bt.data.database.getType();
+										var params = { url: 'database?action=SetupPassword', data: rdata }
+										if (type != 'mysql') {
+											params.url = 'database/' + type + '/SetupPassword';
+											params.data = { data: JSON.stringify(rdata) };
+										}
+                    bt_tools.send(params, function(rRet) {
+											loading.close();
+											bt.msg(rRet);
+											if (rRet.status) load.close();
+                    });
                 })
             ]
         },
+				mongo: {
+					title: lan.database.edit_pass_title,
+					area: '530px',
+					list: [
+						{
+							title: lan.public_backup.rootpass,
+							name: 'password',
+							items: [
+								{
+									type: 'text',
+									width: '311px',
+									event: {
+										css: 'glyphicon-repeat',
+										callback: function (obj) {
+											bt.refresh_pwd(16, obj);
+										},
+									},
+								},
+							],
+						},
+					],
+					btns: [
+						bt.form.btn.close(),
+						bt.form.btn.submit(lan.public_backup.submit, function (rdata, load) {
+							var loading = bt.load();
+							var type = bt.data.database.getType();
+							var url = 'database/' + type + '/set_auth_status';
+							if (type == 'pgsql') url = 'database/' + type + '/set_root_pwd';
+							bt_tools.send({ 
+								url: url, 
+								data: { data: JSON.stringify($.extend(rdata, { status: 1 })) }
+							}, function (rRet) {
+								loading.close();
+								bt.msg(rRet);
+								load.close();
+							});
+						}),
+					],
+				},
         data_add: {
             title: lan.database.add_title,
             area: '530px',
@@ -6491,22 +7548,6 @@ bt.data = {
                     width: '65%'
                 },
                 bt.form.item.password,
-                {
-                    title: lan.public_backup.type,
-                    name: 'dtype',
-                    type: 'select',
-                    disabled: (bt.contains(bt.get_cookie('serverType'), 'nginx') || bt.contains(bt.get_cookie('serverType'), 'apache') ? true : false),
-                    items: [
-                        {
-                            title: 'MySQL',
-                            value: 'MySQL'
-                        },
-                        {
-                            title: 'SQLServer',
-                            value: 'SQLServer'
-                        }
-                    ]
-                },
                 bt.form.item.data_access,
                 {
                     title: lan.public_backup.add_to,
@@ -6538,17 +7579,48 @@ bt.data = {
                     if (!rdata.ps) rdata.ps = rdata.name;
                     if (!rdata.ssl) rdata.ssl = $('#check_ssl').prop('checked')?'REQUIRE SSL':'';
                     var loading = bt.load();
-                    bt.send('AddDatabase', 'database/AddDatabase', rdata, function(rRet) {
-                        loading.close();
-                        if (rRet.status) load.close();
-                        if (callback) callback(rRet);
-                        bt.msg(rRet);
+										var type = bt.data.database.getType();
+										var param = {
+											url: 'database/' + type + '/AddDatabase',
+											data: { data: JSON.stringify(rdata) }
+										};
+										if (type == 'mysql') {
+											rdata['dtype'] = 'MySQL'
+											param = { url: 'database?action=AddDatabase', data: rdata }
+										}
+                    bt_tools.send(param, function(rRet) {
+											loading.close();
+											if (rRet.status) load.close();
+											if (callback) callback(rRet);
+											bt.msg(rRet);
                     })
                 })
             ],
             success: function () {
-                $('[name=sid]').after('<a class="btlink" onclick="layer.closeAll();database.open_cloud_server()" style="margin-left: 10px;">' + lan.public.manage_cloud_server +  '</a>');
-            }
+							$('[name=sid]').after('<a class="btlink" onclick="layer.closeAll();database.open_cloud_server()" style="margin-left: 10px;">' + lan.public.manage_cloud_server +  '</a>');
+							var type = bt.data.database.getType();
+							// 当前类型为mongodb
+							if (type == 'mongodb') {
+								// 是否开启安全认证，没开启隐藏用户名跟密码
+								if (!mongodb.mongoDBAccessStatus) {
+									$('.layui-layer.layui-layer-page .line').eq(1).hide();
+									$('.layui-layer.layui-layer-page .line').eq(2).hide();
+								}
+								// 远程服务器类型判断
+								$('[name=sid]').change(function () {
+									// 为远程服务器时，默认开启安全认证
+									if ($(this).val() != 0) {
+										$('.layui-layer.layui-layer-page .line').eq(1).show();
+										$('.layui-layer.layui-layer-page .line').eq(2).show();
+									} else {
+										if (!mongodb.mongoDBAccessStatuss) {
+											$('.layui-layer.layui-layer-page .line').eq(1).hide();
+											$('.layui-layer.layui-layer-page .line').eq(2).hide();
+										}
+									}
+								})
+							}
+						}
         },
         data_access: {
             title: lan.public_backup.set_db_permissions,
@@ -6602,18 +7674,24 @@ bt.data = {
             btns: [
                 { title: lan.public_backup.turn_off, name: 'close' },
                 {
-                    title: lan.public_backup.submit,
-                    name: 'submit',
-                    css: 'btn-success',
-                    callback: function(rdata, load, callback) {
-                        var loading = bt.load();
-                        bt.send('ResDatabasePassword', 'database/ResDatabasePassword', rdata, function(rRet) {
-                            loading.close();
-                            bt.msg(rRet);
-                            if (rRet.status) load.close();
-                            if (callback) callback(rRet);
-                        })
-                    }
+									title: lan.public_backup.submit,
+									name: 'submit',
+									css: 'btn-success',
+									callback: function(rdata, load, callback) {
+										var loading = bt.load();
+										var type = bt.data.database.getType();
+										var params = { url: 'database?action=ResDatabasePassword', data: rdata }
+										if (type != 'mysql') {
+											params.url = 'database/' + type + '/ResDatabasePassword';
+											params.data = { data: JSON.stringify(rdata) };
+										}
+										bt_tools.send(params, function(rRet) {
+												loading.close();
+												bt.msg(rRet);
+												if (rRet.status) load.close();
+												if (callback) callback(rRet);
+										})
+									}
                 }
             ]
         }
@@ -7305,3 +8383,123 @@ function setPanelSSL(){
         // }, 200);
     });
 }
+
+var dynamic = {
+	loadList: [],
+	fileFunList: {},
+	load: false,
+	callback: null,
+
+	// 初始化执行
+	execution: function () {
+		for (var i = 0; i < this.loadList.length; i++) {
+			var fileName = this.loadList[i];
+			if (fileName in this.fileFunList) this.fileFunList[fileName]();
+		}
+	},
+
+	/**
+	 * @description 动态加载js,css文件
+	 * @param urls {string|array} 文件路径或文件数组
+	 * @param fn {function|undefined} 回调函数
+	 */
+	require: function (urls, fn) {
+		if (!Array.isArray(urls)) urls = [urls];
+
+		this.fileFunList = {};
+
+		var i = 0;
+		var that = this;
+		var total = urls.length;
+		var callback = function () {
+			i++;
+			if (i < total) {
+				that.loadFile(urls[i], callback);
+			} else {
+				fn && fn();
+			}
+		};
+		this.loadFile(urls[i], callback);
+	},
+	/**
+	 * @description 加载js,css文件
+	 * @param {string} url 文件路径
+	 * @param {function} fn 回调函数
+	 */
+	loadFile: function (url, fn) {
+		this.load = true;
+
+		var that = this;
+		var element = this.createElement(url);
+
+		if (element.readyState) {
+			element.onreadystatechange = function (ev) {
+				if (element.readyState === 'loaded' || element.readyState === 'complete') {
+					element.onreadystatechange = null;
+					that.execution();
+					fn && fn.call(that);
+					that.load = false;
+				}
+			};
+		} else {
+			element.onload = function (ev) {
+				that.execution();
+				fn && fn.call(that);
+				that.load = false;
+			};
+		}
+		document.getElementsByTagName('head')[0].appendChild(element);
+	},
+	/**
+	 * @description 创建元素
+	 * @param {string} url 文件路径
+	 * @returns
+	 */
+	createElement: function (url) {
+		var element = null;
+		if (url.indexOf('.js') > -1) {
+			element = document.createElement('script');
+			element.type = 'text/javascript';
+			element.src = bt.url_merge('/vue/' + url);
+		} else if (url.indexOf('.css') > -1) {
+			element = document.createElement('link');
+			element.rel = 'stylesheet';
+			element.href = bt.url_merge('/vue/' + url);
+		}
+		return element;
+	},
+	/**
+	 * @default 执行延迟文件内容执行
+	 * @param fileName {string} 文件名称，不要加文件后缀
+	 * @param callback {function} 回调行数
+	 */
+	delay: function delay(fileName, callback) {
+		if (!this.load) {
+			callback();
+			return false;
+		}
+		this.fileFunList[fileName] = callback;
+	},
+};
+
+// 过滤编码
+bt.htmlEncode = {
+	/**
+	 * @description 正则转换特殊字符
+	 * @param {string} layid 字符内容
+	 */
+	htmlEncodeByRegExp: function (str) {
+		if (typeof str == 'undefined' || str.length == 0) return '';
+		return str
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/ /g, '&nbsp;')
+			.replace(/\'/g, '&#39;')
+			.replace(/\"/g, '&quot;')
+			.replace(/\(/g, '&#40;')
+			.replace(/\)/g, '&#41;')
+			.replace(/`/g, '&#96;')
+			.replace(/=/g, '＝');
+	},
+};
